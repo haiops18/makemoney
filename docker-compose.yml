@@ -24,6 +24,7 @@ services:
   backend:
     build: ./backend
     env_file: ${ENV_FILE:-.env}
+    restart: on-failure:5
     ports:
       - "8000:8000"
     depends_on:
