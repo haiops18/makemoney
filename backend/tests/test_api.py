@@ -2,6 +2,12 @@ def test_protected_routes_require_owner(client):
     assert client.get("/api/v1/agents").status_code == 401
 
 
+def test_root_redirects_to_api_docs(client):
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers["location"] == "/docs"
+
+
 def test_agent_update_is_audited_and_idempotent(client, auth_headers):
     agents = client.get("/api/v1/agents", headers=auth_headers).json()
     agent_id = agents[0]["id"]
