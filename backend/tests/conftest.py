@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
-from app.db.models import Agent
+from app.db.models import Agent, Policy
 from app.db.session import get_db
 from app.main import app
 
@@ -22,6 +22,13 @@ def client() -> TestClient:
     session_factory = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
     with Session(engine) as session:
         session.add(Agent(name="Research Agent", role="research", model=None, enabled=True))
+        session.add(Policy(
+            name="owner-controlled-internal",
+            version="1.0",
+            description="Test policy",
+            rules_json={"allowed_action_types": ["INTERNAL_WORKFLOW", "OPPORTUNITY_REVIEW"], "authorization_scope": "ONCE", "external_execution": False, "require_approval": True},
+            enabled=True,
+        ))
         session.commit()
 
     def override_db():

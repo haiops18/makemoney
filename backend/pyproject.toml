@@ -1,0 +1,4 @@
+[tool.pytest.ini_options]
+markers = [
+  "postgres: requires a PostgreSQL database supplied by POSTGRES_TEST_DATABASE_URL",
+]

@@ -1,7 +1,7 @@
 .env
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
 __pycache__/
 .pytest_cache/
-.coverage
-*.py[cod]
-.venv/
-
+*.pyc

@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://auto_money:change-me@postgres:5432/auto_money"
     redis_url: str = "redis://redis:6379/0"
     monthly_budget_usd: int = 50
+    budget_reserve_usd: int = 5
     timezone: str = "Asia/Ho_Chi_Minh"
 
     def validate_deployment(self) -> None:
