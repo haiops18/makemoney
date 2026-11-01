@@ -12,4 +12,6 @@
 | 2026-10-31 | Expired reservations remain committed until explicit settlement or release records the actual amount. | A worker crash or delayed provider bill must not be treated as zero cost. |
 | 2026-10-31 | Keep Owner token only in React runtime memory. | Local storage and `VITE_*` variables would expose a long-lived credential to the browser bundle. |
 | 2026-10-31 | Render unavailable states for APIs absent from Sprint 2. | The command center must not turn mock or inferred values into business facts. |
+| 2026-10-31 | Add FE-P2 UI quality without introducing missing backend modules. | The command center can improve usability and observability while preserving fail-closed scope. |
+| 2026-10-31 | Keep release blocked without a connected browser E2E session or authenticated GitHub CLI. | Required gates and repository permission must be verified, never assumed. |
 

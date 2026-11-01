@@ -97,3 +97,10 @@ Sprint tiếp theo nên chỉ xây bốn module control bắt buộc trước ex
 
 Sau khi bốn phần trên có migration, API và test đồng thời, mới xem xét OpenAI/Codex và sandbox.
 
+## 8. FE-P2 Command Center quality — 2026-10-31
+
+- Frontend control-plane was enhanced with complete Vietnamese/English copy, responsive UI states, confirmation dialogs, filtering/search and API-backed finance cost/usage presentation.
+- The unavailable Opportunity, Project and Workflow states remain explicit because their backend APIs are still absent.
+- Verified locally: lint, typecheck, production build, four component tests, 13 backend tests (two PostgreSQL integration tests skipped), Docker `/health/ready` and frontend HTTP response.
+- Release remains blocked: browser E2E could not be run because no browser session is available, and GitHub CLI has no authenticated account; no tag or release was created.
+

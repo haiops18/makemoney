@@ -51,3 +51,17 @@ The root-level `PROJECT_STATUS.md` is a prior high-level snapshot and is preserv
 - CI and tag-triggered release workflows were added with minimal permissions.
 - Release is blocked: required frontend component/E2E/browser and Docker runtime gates are incomplete; dependency audit reports two critical issues. No commit, push, tag or release was created.
 
+## FE-P2 checkpoint — 2026-10-31
+
+- **Feature ID:** FE-P2 Command Center quality. **Scope:** frontend enhancement only; no migration, backend contract or external execution change.
+- **Implemented:** bilingual Vietnamese/English resources; shared responsive design system; loading/error/empty states; search/filter controls; explicit confirmation dialogs and toast feedback; API-backed recorded cost and usage sections; approval details with only backend-supported fields.
+- **Controls preserved:** Owner token is runtime-only; mutations retain generated idempotency keys; missing Opportunity, Project and Workflow APIs remain unavailable states; no projected business data is rendered as fact.
+- **Verification:** frontend lint/typecheck/build passed; Vitest component tests `4 passed`; Docker image build passed; backend `python -m pytest` in Docker `13 passed, 2 skipped`; `/health/ready` returned 200, frontend returned HTTP 200, and frontend Docker healthcheck is `healthy`.
+- **Release status:** `RELEASE_BLOCKED`. Browser E2E/responsive interaction was not verified because no browser session is connected; GitHub CLI is unauthenticated so permissions, CI status, push, tag and GitHub Release cannot be verified. `npm audit --audit-level=critical` passed but reports 12 moderate dev dependency findings with no available fix.
+
+## FE-Stabilization — v26.4.0 candidate
+
+- Bootstrap refactor, Admin session login and Playwright Chromium E2E are implemented.
+- Local gates: frontend lint/typecheck/build, Vitest, Playwright, Docker health/proxy and full PostgreSQL test suite pass.
+- Security audit: zero critical/high; 12 moderate development-only ESLint/minimatch findings remain, with no non-breaking automatic remediation.
+

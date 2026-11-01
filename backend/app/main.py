@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 from app.api.routes import router
 from app.api.approval_routes import router as approval_router
 from app.api.finance_routes import router as finance_router
+from app.api.auth_routes import router as auth_router
 from app.core.config import get_settings
 
 @asynccontextmanager
@@ -18,6 +19,7 @@ app = FastAPI(title="AUTO MONEY AI", version="0.1.0", lifespan=lifespan)
 app.include_router(router)
 app.include_router(approval_router)
 app.include_router(finance_router)
+app.include_router(auth_router)
 
 
 @app.get("/", include_in_schema=False)

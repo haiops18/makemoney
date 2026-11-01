@@ -28,3 +28,11 @@ For a frontend screen whose API does not exist, present an explicit unavailable 
 - Versioning is MAJOR.MINOR.PATCH: accepted feature or breaking change increments MAJOR; enhancement increments MINOR; bug/security fix increments PATCH.
 - Before GitHub release, verify branch, remote, tags, permissions, tests, migrations, secrets and dependency audit. If any required check is not verified, record `RELEASE_BLOCKED` and do not tag or release.
 
+## Feature and automatic release workflow
+
+- Every feature records an ID, business requirement, acceptance criteria, affected modules, database/API/frontend changes, security considerations, tests, documentation and target version before it is marked complete.
+- Use semantic `MAJOR.MINOR.PATCH`: an accepted feature or breaking change increments MAJOR; an enhancement increments MINOR; a bug/security fix increments PATCH. Never replace an existing tag or release.
+- For an accepted release: run frontend lint, typecheck, build and tests; relevant E2E/runtime checks; backend regressions; migrations when applicable; `git diff --check`; secret review; and dependency audit. Document skipped or unverified checks as such.
+- Update project memory, CHANGELOG and release history before release. Then commit on a permitted branch, push without force, create an annotated unique tag from the tested commit, push it and create a GitHub Release only if GitHub authentication, repository permissions and CI checks are verified.
+- CI runs on pushes and pull requests. Tagged release CI repeats required verification, runs Docker runtime smoke, and creates the release idempotently with minimum `contents: write` permission.
+
