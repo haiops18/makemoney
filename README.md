@@ -28,6 +28,23 @@ pip install -r requirements.txt
 pytest
 ```
 
+Frontend quality gates:
+
+```bash
+cd frontend
+npm ci
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+Docker runtime smoke (preserves named database volumes):
+
+```bash
+./scripts/docker-smoke.sh
+```
+
 ## Command Center (local only)
 
 ```bash
@@ -37,6 +54,8 @@ npm run dev
 ```
 
 Open `http://localhost:5173`. Enter the Owner token only into the in-memory session field; never set it in `VITE_*` or commit it. `docker compose up --build` also serves the frontend at `http://localhost:3000`, with `/api` and `/health` reverse-proxied to the backend.
+
+The command center is Vietnamese by default and can switch to English. It presents only API-verified dashboard, agent, approval, budget, cost, usage and audit data. Opportunity, Project and Workflow pages remain explicitly unavailable until their backend APIs exist.
 
 ## Project decisions
 

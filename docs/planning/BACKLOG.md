@@ -10,3 +10,8 @@
 
 - OpenAI/Codex execution, crawlers, payment, publication, customer communication and untrusted sandboxing.
 - React command-center implementation after corresponding APIs are available.
+
+## Release-enablement follow-up
+
+- Run browser E2E/responsive smoke with a connected browser session.
+- Configure GitHub CLI authentication, then verify branch protection, push permissions and remote CI before any tag/release.
