@@ -1,5 +1,34 @@
 # API specification — Sprint 2 Module 1
 
+## Step 5 current workflow contract — IN_PROGRESS
+
+All paths below are under `/api/v1/workflows`, require Owner authentication and
+mutations require `Idempotency-Key`. Lists support pagination. `GET /` and `POST /`
+list/create; `GET /summary` and `/recent-executions` provide dashboard data;
+`GET/PATCH /{id}` reads/edits a draft. `GET/POST /{id}/tasks` reads/adds tasks;
+`GET /{id}/events` and `/executions` expose the audit timeline and attempts.
+`POST /{id}/submit`, `/start`, `/pause`, `/resume`, `/cancel`, `/reopen` enforce
+the workflow state machine. `GET /{id}/tasks/{task_id}/approval-action` returns
+the exact server-generated action for the existing Approval Center;
+`POST /{id}/tasks/{task_id}/queue` consumes its one-time approval and enqueues it.
+Submit approval and task approval are separate; neither grants future actions.
+Worker claims revalidate policy, approval, dependencies and zero-cost allowance.
+The older Step 5 checkpoints immediately below are historical.
+
+Step 5 adds `POST /api/v1/workflows/{id}/submit` (creates an existing Approval
+Center request tied to a canonical workflow snapshot), `POST .../{id}/start`
+(consumes that approval and queues; does not execute a task), and
+`GET .../{id}/tasks/{task_id}/approval-action` (returns the canonical task action
+for Owner approval). Task execution/worker endpoints remain unavailable.
+
+## Step 5 draft API — IN_PROGRESS
+
+Owner-only `GET /api/v1/workflows`, `POST /api/v1/workflows`,
+`GET /api/v1/workflows/{id}` and `GET/POST /api/v1/workflows/{id}/tasks`.
+POST operations require an idempotency key and write audit events transactionally.
+Only DRAFT tasks may be added, with enabled roles, allowlisted types and existing
+same-workflow dependencies. No execution/approval lifecycle endpoint is available.
+
 All endpoints below require `Authorization: Bearer <OWNER_API_KEY>`.
 
 | Method | Path | Purpose |

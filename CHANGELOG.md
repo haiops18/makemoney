@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — Step 5 Workflow Orchestration
+
+- Added Owner-only workflows, ordered dependencies, immutable attempt/event history,
+  separate action-bound workflow and task approvals, and transactional audit.
+- Added PostgreSQL-backed worker leases, concurrency-safe claims, bounded retry,
+  crash recovery and cooperative cancellation for two pure validation handlers.
+- Added API-backed workflow command center and isolated PostgreSQL/Compose E2E jobs.
+- No external execution, paid calls, AI inference, publication or payments.
+- Candidate v28.0.0 remains IN_PROGRESS until all gates and release are verified.
+
 ## v27.0.0 — 2026-11-02 — RELEASED
 
 - Opportunity database/API, manual evidence, Decimal financial scenarios, weighted

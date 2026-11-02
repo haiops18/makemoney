@@ -1,5 +1,22 @@
 # Decisions
 
+## Step 5 execution safety
+
+PostgreSQL owns the queue and execution leases. Each workflow and each task action
+uses the existing approval center independently; consumed authorizations cannot be
+reused on recovery. Only two pure, zero-cost validation handlers are allowed; paid
+or external actions are denied until a separately authorized design exists. Running
+Python handlers cannot be force-killed safely, so cancellation discards their result
+and lease fencing rejects late completions. No database volumes are reset.
+
+- Workflow start consumes an approval for the exact submitted workflow snapshot;
+  it does not grant task authorization. Each task binds a separate one-time
+  approval to current inputs and policy. The current handler registry is pure,
+  internal and explicitly zero-cost; any cost-bearing handler must be denied
+  until its reservation control is implemented.
+
+- Step 5 begins with explicit terminal state transitions and iterative cycle detection. No primitive alone authorizes execution; existing policy, one-time approval and budget services must be rechecked at the execution boundary.
+
 - 2026-11-02: Candidate v27.0.0 follows verified remote v26.4.0 (MAJOR feature policy). Use a PR and successful CI before merge/tag; Owner already authorized controlled release.
 - 2026-11-02: ROI uses a one-month net return including upfront investment: (monthly profit - setup cost) / setup cost * 100. Persist calculation version/period in assumptions. Zero investment keeps ROI UNKNOWN.
 - 2026-11-02: PostgreSQL transaction advisory locks serialize retries by Owner/idempotency key; duplicate concurrent requests must create one mutation and audit event.

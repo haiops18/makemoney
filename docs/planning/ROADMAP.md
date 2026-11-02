@@ -1,5 +1,11 @@
 # Roadmap
 
+Current: Step 5 / S2-M4 IN_PROGRESS; Step 4 is released as v27.0.0.
+Workflow lifecycle, approval-bound zero-cost internal execution and API-backed UI
+are under verification. Target v28.0.0 is not released. Next requested roadmap
+step is Step 6 — AI Brain & Research Agents, subject to separate authorization.
+Historical checkpoints below are retained for context.
+
 Current: S2-M3 / Step 4 RELEASED as v27.0.0 (verified GitHub release and CI).
 Next: S2-M4 internal Workflow Orchestration under Owner-approved scope; no external execution.
 

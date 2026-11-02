@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, JSON, Numeric, String, UniqueConstraint, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, JSON, Numeric, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -322,4 +322,115 @@ class OpportunityEvaluation(Base):
     result_snapshot_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     evaluated_by: Mapped[str] = mapped_column(String(100), nullable=False)
     evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class Workflow(Base):
+    __tablename__ = 'workflows'
+    __table_args__ = (
+        CheckConstraint("status IN ('DRAFT','PENDING_APPROVAL','APPROVED','QUEUED','RUNNING','PAUSED','COMPLETED','FAILED','CANCELLED')", name='ck_workflow_status'),
+        CheckConstraint('version >= 1', name='ck_workflow_version'),
+        Index('ix_workflow_status_created', 'status', 'created_at'),
+        Index('ix_workflow_opportunity', 'opportunity_id'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    opportunity_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('opportunities.id', ondelete='RESTRICT'), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(5000))
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default='DRAFT', server_default='DRAFT')
+    created_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default='1')
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class WorkflowTask(Base):
+    __tablename__ = 'workflow_tasks'
+    __table_args__ = (
+        UniqueConstraint('workflow_id', 'id', name='uq_workflow_task_parent_id'),
+        CheckConstraint("status IN ('PENDING','BLOCKED','READY','RUNNING','SUCCEEDED','FAILED','RETRY_WAIT','CANCELLED','SKIPPED')", name='ck_workflow_task_status'),
+        CheckConstraint('max_retries >= 0 AND max_retries <= 10 AND retry_count >= 0 AND retry_count <= max_retries', name='ck_workflow_task_retries'),
+        CheckConstraint('timeout_seconds BETWEEN 1 AND 300', name='ck_workflow_task_timeout'),
+        Index('ix_workflow_tasks_workflow_status', 'workflow_id', 'status'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    workflow_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('workflows.id', ondelete='RESTRICT'), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(5000))
+    task_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    assigned_role: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default='PENDING', server_default='PENDING')
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default='0')
+    max_retries: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default='0')
+    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default='0')
+    timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=30, server_default='30')
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    input_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class TaskDependency(Base):
+    __tablename__ = 'task_dependencies'
+    __table_args__ = (
+        ForeignKeyConstraint(['workflow_id', 'task_id'], ['workflow_tasks.workflow_id', 'workflow_tasks.id'], ondelete='RESTRICT'),
+        ForeignKeyConstraint(['workflow_id', 'depends_on_task_id'], ['workflow_tasks.workflow_id', 'workflow_tasks.id'], ondelete='RESTRICT'),
+        UniqueConstraint('task_id', 'depends_on_task_id', name='uq_task_dependency'),
+        CheckConstraint('task_id <> depends_on_task_id', name='ck_task_dependency_not_self'),
+        Index('ix_task_dependency_parent', 'depends_on_task_id'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    workflow_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    task_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    depends_on_task_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+
+
+class TaskExecution(Base):
+    __tablename__ = 'task_executions'
+    __table_args__ = (
+        UniqueConstraint('task_id', 'attempt_number', name='uq_task_execution_attempt'),
+        UniqueConstraint('idempotency_key', name='uq_task_execution_idempotency'),
+        CheckConstraint('attempt_number >= 1', name='ck_task_execution_attempt'),
+        CheckConstraint("status IN ('QUEUED','RUNNING','SUCCEEDED','FAILED','CANCELLED','TIMED_OUT','ABANDONED')", name='ck_task_execution_status'),
+        UniqueConstraint('authorization_id', name='uq_task_execution_authorization'),
+        Index('ix_task_execution_task_started', 'task_id', 'started_at'),
+        Index('ix_task_execution_lease', 'status', 'lease_expires_at'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    task_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('workflow_tasks.id', ondelete='RESTRICT'), nullable=False)
+    attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lease_token: Mapped[uuid.UUID | None] = mapped_column()
+    policy_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('policies.id', ondelete='RESTRICT'))
+    authorization_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('action_authorizations.id', ondelete='RESTRICT'))
+    action_hash: Mapped[str | None] = mapped_column(String(64))
+    input_snapshot_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    error_code: Mapped[str | None] = mapped_column(String(100))
+    error_message: Mapped[str | None] = mapped_column(String(1000))
+    output_reference: Mapped[str | None] = mapped_column(String(500))
+    output_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
+
+
+class WorkflowEvent(Base):
+    __tablename__ = 'workflow_events'
+    __table_args__ = (
+        ForeignKeyConstraint(['workflow_id', 'task_id'], ['workflow_tasks.workflow_id', 'workflow_tasks.id'], ondelete='RESTRICT'),
+        Index('ix_workflow_events_workflow_created', 'workflow_id', 'created_at'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    workflow_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('workflows.id', ondelete='RESTRICT'), nullable=False)
+    task_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('workflow_tasks.id', ondelete='RESTRICT'))
+    event_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    previous_status: Mapped[str | None] = mapped_column(String(30))
+    new_status: Mapped[str | None] = mapped_column(String(30))
+    actor: Mapped[str] = mapped_column(String(100), nullable=False)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

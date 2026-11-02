@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: step5_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: step5-local-only
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U postgres -d step5_test]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  backend:
+    build: ./backend
+    environment: &test_env
+      DATABASE_URL: postgresql+psycopg://postgres:step5-local-only@postgres/step5_test
+      POSTGRES_TEST_DATABASE_URL: postgresql+psycopg://postgres:step5-local-only@postgres/step5_test
+      OWNER_API_KEY: step5-local-owner-test
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  worker:
+    build: ./backend
+    environment: *test_env
+    command: ["python", "-m", "app.orchestration.worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+  frontend:
+    build: ./frontend
+    ports: [127.0.0.1:18006:80]
+    depends_on: [backend]

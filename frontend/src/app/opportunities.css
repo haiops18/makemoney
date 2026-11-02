@@ -25,3 +25,12 @@
 .opportunity-center .row span { min-width: 0; }
 .opportunity-center meter { display: block; width: min(100%, 400px); margin: 5px 0 12px; }
 .opportunity-center .kpis { margin-bottom: 20px; }
+.opportunity-center pre { max-width: 100%; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.workflow-graph { list-style: none; padding: 0; display: grid; gap: 9px; }
+.workflow-graph li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px; border: 1px solid #7a8aa7; border-radius: 9px; overflow-wrap: anywhere; }
+.workflow-status { display: inline-block; border-radius: 7px; padding: 3px 7px; color: #17233c; background: #e4eaf5; font-size: 12px; font-weight: 700; }
+.workflow-running, .workflow-queued, .workflow-ready { color: #14366a; background: #bfdaff; }
+.workflow-succeeded, .workflow-completed { color: #075331; background: #baf2d0; }
+.workflow-failed { color: #7c1423; background: #ffd0d7; }
+.workflow-blocked, .workflow-retry-wait, .workflow-pending-approval { color: #684000; background: #ffe5ab; }
+.workflow-cancelled, .workflow-skipped { color: #3c4552; background: #d8dee8; }

@@ -1,5 +1,13 @@
 # Backlog
 
+## Step 5 current release gates
+
+- Verify the final isolated PostgreSQL, worker recovery, frontend E2E and Docker
+  runtime against the candidate, then verify security audits and GitHub CI.
+- Merge, tag and release only after all required checks pass; record actual SHAs.
+- Track the 12 moderate development-only frontend audit findings and keep paid
+  and external execution disabled. Step 6 requires separately authorized scope.
+
 ## After v27.0.0 release
 
 Step 4 is RELEASED; prior auth/runtime/release tasks below are closed.
