@@ -47,6 +47,7 @@ it('does not report success when a mutation response fails validation', async ()
   const request = vi.fn(async (path: string, init?: RequestInit) => init ? { id: 'wrong-record', title: 'Updated' } : path === '/test' ? record : []);
   wrap(<OpportunityDetail id="test" title="Research" request={request}/>);
   await screen.findByText('Mô tả');
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu Chỉnh sửa' })).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: 'Lưu Chỉnh sửa' }));
   await screen.findByRole('alert');
   expect(screen.queryByText('Đã lưu và xác minh phản hồi.')).not.toBeInTheDocument();
