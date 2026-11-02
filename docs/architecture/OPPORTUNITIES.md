@@ -15,9 +15,10 @@ assessment disqualify the opportunity regardless of score. Evaluation snapshots
 preserve inputs, risk assessment and outputs. Rule changes require a new version.
 
 Each estimate is a single-currency, constant monthly cash-flow scenario. Monthly
-profit = revenue minus operating cost. ROI is the one-month operating net return
-divided by upfront setup investment, multiplied by 100; setup investment is not
-deducted a second time from operating profit. Break-even months = setup investment
+profit = revenue minus operating cost. One-month ROI is (monthly operating profit
+minus upfront setup investment) divided by upfront investment, multiplied by 100.
+It includes recovery of the initial investment; operating profit itself does not
+subtract setup cost. Break-even months = setup investment
 divided by positive monthly profit, assuming immediate recurring cash flow and no
 growth, financing, tax or discounting beyond supplied costs. It is an estimate.
 Zero or missing investment yields UNKNOWN ROI; nonpositive profit yields UNKNOWN

@@ -16,7 +16,7 @@ DISQUALIFIER_LABELS = {
 
 def financial_values(setup_cost: Decimal | None, operating_cost: Decimal | None, revenue: Decimal | None) -> tuple[Decimal | None, Decimal | None, Decimal | None]:
     profit = revenue - operating_cost if revenue is not None and operating_cost is not None else None
-    roi = (profit / setup_cost * Decimal("100")) if profit is not None and setup_cost not in (None, Decimal("0")) else None
+    roi = ((profit - setup_cost) / setup_cost * Decimal("100")) if profit is not None and setup_cost not in (None, Decimal("0")) else None
     break_even = (setup_cost / profit) if setup_cost is not None and profit is not None and profit > 0 else None
     return profit, roi, break_even
 

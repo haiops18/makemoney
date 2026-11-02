@@ -29,7 +29,7 @@ def test_every_disqualifier_overrides_perfect_score(risk):
 def test_financial_unknown_and_zero_investment():
     assert financial_values(None, None, None) == (None, None, None)
     assert financial_values(Decimal('0'), Decimal('10'), Decimal('25')) == (Decimal('15'), None, Decimal('0'))
-    assert financial_values(Decimal('100'), Decimal('20'), Decimal('10')) == (Decimal('-10'), Decimal('-10'), None)
+    assert financial_values(Decimal('100'), Decimal('20'), Decimal('10')) == (Decimal('-10'), Decimal('-110'), None)
 
 
 def test_opportunity_lifecycle(client, auth_headers):
@@ -57,7 +57,7 @@ def test_opportunity_lifecycle(client, auth_headers):
     estimate = {'scenario': 'BASE', 'currency': 'USD', 'setup_cost': '10', 'monthly_operating_cost': '2', 'expected_monthly_revenue': '5', 'evaluated_at': '2026-11-02T00:00:00Z'}
     result = client.post(path + '/estimates', json=estimate, headers={**auth_headers, 'Idempotency-Key': 'estimate'})
     assert result.status_code == 201
-    assert Decimal(result.json()['expected_roi']) == Decimal('30')
+    assert Decimal(result.json()['expected_roi']) == Decimal('-70')
     other = client.post('/api/v1/opportunities', json={'title': 'Second', 'business_model': 'AI_SERVICES'}, headers={**auth_headers, 'Idempotency-Key': 'second'}).json()
     comparison = client.post('/api/v1/opportunities/compare', json={'opportunity_ids': [item['id'], other['id']]}, headers=auth_headers)
     assert comparison.status_code == 200

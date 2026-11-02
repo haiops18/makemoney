@@ -243,7 +243,9 @@ def create_estimate(opportunity_id: UUID, body: EstimateCreate, response: Respon
     profit, roi, break_even = financial_values(body.setup_cost, body.monthly_operating_cost, body.expected_monthly_revenue)
     if any(value is not None and abs(value) >= Decimal('1000000000000') for value in (profit, roi, break_even)):
         raise HTTPException(status_code=422, detail="Derived financial value exceeds supported precision")
-    estimate = OpportunityEstimate(opportunity_id=opportunity_id, **body.model_dump(), expected_monthly_profit=profit, expected_roi=roi, break_even_months=break_even)
+    values = body.model_dump()
+    values["assumptions_json"] = {**body.assumptions_json, "_calculation": {"version": "2026.11.1", "roi_period_months": 1, "roi_net_return": "monthly_profit_minus_setup_investment", "break_even": "constant_monthly_cash_flow", "expected_value": "UNKNOWN"}}
+    estimate = OpportunityEstimate(opportunity_id=opportunity_id, **values, expected_monthly_profit=profit, expected_roi=roi, break_even_months=break_even)
     db.add(estimate); _flush(db); result = _estimate_response(estimate)
     db.add(AuditEvent(actor=actor, action="opportunity_estimate.created", entity_type="opportunity_estimate", entity_id=estimate.id, detail={"opportunity_id": str(opportunity_id), "scenario": body.scenario, "roi_known": roi is not None}))
     _store_idempotency(db, actor, idempotency_key, "POST", path, payload, result, 201)
