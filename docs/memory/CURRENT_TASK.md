@@ -2,6 +2,10 @@
 
 **Task ID:** S2-M3
 
+Final local gates passed: 32 backend, 10 frontend, 2 real-runtime Playwright.
+Next: verify final PR #2 CI, merge under normal workflow, verify main CI, annotate
+unique v27.0.0 tag, let release workflow verify/create release, then record evidence.
+
 Latest candidate: v27.0.0 on PR #2. GitHub login/permissions restored and baseline
 release verified. Advanced UI/KPIs/comparison implemented; 32 source backend and
 9 frontend tests plus lint/typecheck/build passed. Await final E2E/CI, then

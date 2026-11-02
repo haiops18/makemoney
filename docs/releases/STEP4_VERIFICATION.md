@@ -66,3 +66,16 @@ rank is advisory, not a decision. Twelve moderate development-tool dependency
 findings have no available remediation in the existing compatible toolchain.
 Local coverage is not a claim of exhaustive testing. Release requires final CI,
 merge, unique annotated tag and verified GitHub Release; not yet RELEASED.
+
+## Final local gates
+
+- Backend mounted source and rebuilt test Compose: **32 passed** with PostgreSQL.
+- Frontend: **10 passed**, ESLint/typecheck/production build passed.
+- Real runtime Chromium: **2 passed**, including edit, all three scenarios,
+  scoring, comparison, severe disqualification, mobile display and audit.
+- A failing E2E exposed a stale initial list race; fixed by cancelling the in-flight
+  query before refetch after creation. Added a component regression. Scenario
+  form refresh now preserves user inputs instead of remounting on data updates.
+- Dependency audits: pip-audit clean; npm high/critical gate clean (12 moderate
+  dev-tool findings). Scoped secret-signature review and diff whitespace check passed.
+- CI for earlier candidates passed; final commit CI remains required before merge.

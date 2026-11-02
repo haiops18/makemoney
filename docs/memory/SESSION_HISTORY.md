@@ -1,5 +1,13 @@
 # Session history
 
+## 2026-11-02 — v27.0.0 final local gate
+
+- Completed KPI overview, financial list fields, saved detail metadata, confidence/validation-time comparison and all-scenario selector.
+- Defined one-month net ROI including setup investment; assumptions preserve formula version.
+- Expanded score boundaries/all risk categories, XSS escaping and response-mismatch tests. Backend 32 passed, frontend 10 passed; lint/typecheck/build passed.
+- Final expanded real API E2E: 2 passed on rebuilt isolated Compose. Fixed an observed stale-list create race and scenario form reset; regression test added.
+- PR #2 contains candidate; final remote CI/merge/tag/release pending. No early COMPLETED claim.
+
 ## 2026-11-02 — GitHub authentication restored
 
 - Verified haiops18 login, push/admin permissions, no main protection/rulesets, latest release v26.4.0 and baseline CI success. That release includes migrations 0001–0003.

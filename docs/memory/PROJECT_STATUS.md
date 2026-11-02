@@ -1,5 +1,12 @@
 # Project status
 
+## Final local gates — v27.0.0
+
+32 backend / 10 frontend / 2 Playwright tests passed. Real API E2E covers edit,
+all scenarios, evaluation/comparison, severe risk, mobile and audit. Isolated
+Compose migration/runtime verified; pip-audit clean, npm no high/critical.
+PR #2 awaiting final CI. Step 4 remains release candidate until verified release.
+
 ## v27.0.0 candidate — latest
 
 PR #2 implements Step 4 backend/DB and existing React command center. GitHub auth

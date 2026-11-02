@@ -104,3 +104,11 @@ Sau khi bốn phần trên có migration, API và test đồng thời, mới xem
 - Verified locally: lint, typecheck, production build, four component tests, 13 backend tests (two PostgreSQL integration tests skipped), Docker `/health/ready` and frontend HTTP response.
 - Release remains blocked: browser E2E could not be run because no browser session is available, and GitHub CLI has no authenticated account; no tag or release was created.
 
+# Step 4 release candidate — 2026-11-02
+
+Opportunity engine candidate v27.0.0 is on PR #2. Local gates: 32 backend,
+10 frontend and 2 Playwright tests passed; isolated PostgreSQL migration,
+constraints/concurrency and Docker runtime verified. Dependency audits and
+scoped secret/diff checks passed (12 moderate frontend dev-tool findings remain).
+Final remote CI/merge/tag/release pending. This is not a COMPLETED claim.
+
