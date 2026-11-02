@@ -1,5 +1,12 @@
 # Known issues
 
+## v27.0.0 candidate review (supersedes earlier open items)
+
+GitHub authentication restored. Fresh PostgreSQL migrations/concurrency and
+advanced UI forms/KPIs/comparison are implemented and tested. Backend dependency
+audit clean; frontend 12 moderate dev-tool findings remain. Domain enums retain
+English codes in bilingual UI. Await final-commit E2E/CI/release verification.
+
 ## Latest checkpoint — 2026-11-02
 
 The prior UI/database/test gaps below are historical: advanced forms exist,

@@ -39,7 +39,30 @@ Frontend lint/build/7 tests and real runtime Playwright 2 tests passed again.
 Comparison now offers all three scenarios; descriptive form labels localized.
 Remote CI/new release not yet verified. Status: **RELEASE_BLOCKED** pending gates.
 
-Limits: some field labels remain technical English in both locales; advanced UI
-coverage does not yet exercise every error, mobile form and risk-checkbox path.
-Comparison uses BASE scenario only; no investment/execution is authorized. Full
-original Step 4 acceptance remains pending review of these gaps and release gates.
+## Final candidate review
+
+Candidate v27.0.0 adds seven overview KPIs, sorting and list financial estimates /
+last evaluation; comparison displays currency, cost, revenue, profit, ROI,
+break-even, risk, confidence, validation days and automation for all three scenarios.
+Detail loads the stored description, customer and monetization data. Financial
+confidence remains optional. Expected Value remains UNKNOWN without probabilities.
+One-month net-return ROI now includes upfront setup investment and stores the
+server calculation version in assumptions; this supersedes earlier formula notes.
+
+Latest executed source suite: **32 backend tests passed**, including eight score
+boundary cases, all five risk disqualifiers, invalid URLs, overflow, transactional
+rollback, FK/check constraints and concurrent idempotent requests. **9 frontend
+tests passed**, including escaped untrusted HTML and rejecting mismatched mutation
+responses. Lint/typecheck/build passed. Real API E2E expanded to edit, all scenarios,
+severe-risk disqualification and mobile display; final rerun/CI pending.
+
+Security review: no .env tracked, no secret token/private-key signatures found in
+scoped source/docs; only explicit test credentials added. Evidence is never fetched
+or executed. All new mutation APIs are Owner authenticated, idempotent and audited.
+No provider call, external execution, publication, payment or ledger write exists.
+
+Known limitations retained: domain identifiers use English enum codes; comparison
+rank is advisory, not a decision. Twelve moderate development-tool dependency
+findings have no available remediation in the existing compatible toolchain.
+Local coverage is not a claim of exhaustive testing. Release requires final CI,
+merge, unique annotated tag and verified GitHub Release; not yet RELEASED.

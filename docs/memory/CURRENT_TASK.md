@@ -2,6 +2,11 @@
 
 **Task ID:** S2-M3
 
+Latest candidate: v27.0.0 on PR #2. GitHub login/permissions restored and baseline
+release verified. Advanced UI/KPIs/comparison implemented; 32 source backend and
+9 frontend tests plus lint/typecheck/build passed. Await final E2E/CI, then
+controlled merge/tag/release verification. Do not mark RELEASED before that.
+
 Latest: advanced UI and real PostgreSQL/Compose E2E implemented and locally
 verified (18 backend, 7 frontend, 2 Playwright passed). Awaiting supported GitHub
 device authentication; remote gates and remaining acceptance limits are in

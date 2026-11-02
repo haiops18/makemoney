@@ -1,5 +1,13 @@
 # Project status
 
+## v27.0.0 candidate — latest
+
+PR #2 implements Step 4 backend/DB and existing React command center. GitHub auth
+and baseline release are verified. Current source test results: 32 backend,
+9 frontend tests passed; build/lint/typecheck passed. Full runtime E2E and remote
+CI for final commit pending. Backend audit clean after pytest security upgrade;
+frontend has no high/critical, 12 moderate dev-tool findings. Not RELEASED.
+
 ## Latest Step 4 checkpoint — 2026-11-02
 
 Advanced forms and comparison implemented. Isolated PostgreSQL migration and
