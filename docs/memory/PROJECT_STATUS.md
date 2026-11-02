@@ -1,5 +1,14 @@
 # Project status
 
+## Latest Step 4 checkpoint — 2026-11-02
+
+Advanced forms and comparison implemented. Isolated PostgreSQL migration and
+rebuilt Compose suite: 18 backend tests passed; 7 frontend tests passed; 2
+Playwright tests passed, including real API create/evidence/estimate/evaluate/
+compare/audit. Release remains blocked by authentication, remote gates, backend
+dependency audit and remaining acceptance limits documented in
+`docs/releases/STEP4_VERIFICATION.md`. Earlier checkpoints below are historical.
+
 ## Verified baseline — 2026-10-31
 
 - **Sprint 1 control plane:** implemented and running.
@@ -64,4 +73,18 @@ The root-level `PROJECT_STATUS.md` is a prior high-level snapshot and is preserv
 - Bootstrap refactor, Admin session login and Playwright Chromium E2E are implemented.
 - Local gates: frontend lint/typecheck/build, Vitest, Playwright, Docker health/proxy and full PostgreSQL test suite pass.
 - Security audit: zero critical/high; 12 moderate development-only ESLint/minimatch findings remain, with no non-breaking automatic remediation.
+
+## S2-M3 checkpoint — 2026-11-02
+
+- **Implemented in working tree:** opportunity UUID schema/migration `20261102_0004`, owner-authenticated CRUD, evidence capture, numeric financial estimates, versioned scoring with severe-risk disqualification, comparison and rankings endpoints.
+- **Controls:** idempotency keys and audit events on mutations; evidence URLs are validated but never fetched; no crawler, paid AI call, external execution or financial ledger write is enabled.
+- **Verification:** backend Docker pytest `13 passed, 2 skipped`; frontend lint, typecheck and production build passed.
+- **Release status:** `RELEASE_BLOCKED`. The migration/release gate, browser E2E, Docker runtime verification and GitHub authentication/CI verification were not completed in this session. Frontend Opportunities remains an explicit unavailable state until its full API-backed command-center screen is completed.
+
+### Continuation verification
+
+- Previous 13-test Docker result was from a prebuilt image and is not evidence for the new module. Mounted source now passes 15 tests, with 2 PostgreSQL tests skipped.
+- Basic Opportunities create/list/search/filter/pagination/detail UI now uses real API responses. Advanced forms, scenarios, scoring and comparison UI remain pending.
+- Frontend lint/typecheck/build and 4 existing component tests passed. Feature-specific component and E2E coverage is still pending.
+- GitHub CLI authentication fails with an invalid token. Release remains blocked.
 

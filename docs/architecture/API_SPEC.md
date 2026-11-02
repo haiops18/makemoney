@@ -17,3 +17,7 @@ The server, not the client, creates `action_hash` from canonical JSON. An expire
 ## Finance API
 
 `GET /api/v1/budgets`, `GET /api/v1/budgets/current`, `POST /api/v1/budgets/reservations`, `POST /api/v1/budgets/reservations/{id}/settle`, `POST /api/v1/budgets/reservations/{id}/release`, `GET /api/v1/finance/usage`, and `GET /api/v1/finance/costs` require Owner authentication. Mutations require `Idempotency-Key`.
+# Opportunity API addition — Step 4 candidate
+
+See [Opportunity contracts and formulas](OPPORTUNITIES.md) for the Owner-only
+`/api/v1/opportunities` routes, mutation idempotency, risk and financial semantics.

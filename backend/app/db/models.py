@@ -206,3 +206,120 @@ class CostRecord(Base):
     status: Mapped[str] = mapped_column(String(30), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
+
+class Opportunity(Base):
+    __tablename__ = "opportunities"
+    __table_args__ = (
+        CheckConstraint("status IN ('DRAFT', 'RESEARCHING', 'EVALUATED', 'DISQUALIFIED', 'ARCHIVED')", name="ck_opportunity_status"),
+        CheckConstraint("risk_level IN ('UNKNOWN', 'LOW', 'MEDIUM', 'HIGH', 'SEVERE')", name="ck_opportunity_risk_level"),
+        CheckConstraint("score IS NULL OR (score >= 0 AND score <= 100)", name="ck_opportunity_score"),
+        CheckConstraint("confidence_score IS NULL OR (confidence_score >= 0 AND confidence_score <= 100)", name="ck_opportunity_confidence"),
+        CheckConstraint("time_to_validate_days IS NULL OR time_to_validate_days >= 0", name="ck_opportunity_validation_days"),
+        Index("ix_opportunities_status_score", "status", "score"),
+        Index("ix_opportunities_business_model_created_at", "business_model", "created_at"),
+        Index("ix_opportunities_updated_at", "updated_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(5000))
+    category: Mapped[str | None] = mapped_column(String(100))
+    target_market: Mapped[str | None] = mapped_column(String(200))
+    target_customer: Mapped[str | None] = mapped_column(String(500))
+    business_model: Mapped[str] = mapped_column(String(100), nullable=False)
+    monetization_method: Mapped[str | None] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="DRAFT")
+    score: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[int | None] = mapped_column(Integer)
+    risk_level: Mapped[str] = mapped_column(String(20), nullable=False, default="UNKNOWN")
+    time_to_validate_days: Mapped[int | None] = mapped_column(Integer)
+    data_origin: Mapped[str] = mapped_column(String(100), nullable=False, default="OWNER_INPUT")
+    created_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class OpportunityEvidence(Base):
+    __tablename__ = "opportunity_evidence"
+    __table_args__ = (
+        CheckConstraint("confidence IS NULL OR (confidence >= 0 AND confidence <= 100)", name="ck_opportunity_evidence_confidence"),
+        CheckConstraint("verification_status IN ('UNVERIFIED', 'VERIFIED', 'REJECTED')", name="ck_opportunity_evidence_verification"),
+        Index("ix_opportunity_evidence_opportunity_captured", "opportunity_id", "captured_at"),
+        UniqueConstraint("opportunity_id", "source_url", "evidence_type", name="uq_opportunity_evidence_source_type"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    opportunity_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("opportunities.id", ondelete="RESTRICT"), nullable=False)
+    source_url: Mapped[str | None] = mapped_column(String(2048))
+    source_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    evidence_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    summary: Mapped[str] = mapped_column(String(5000), nullable=False)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    confidence: Mapped[int | None] = mapped_column(Integer)
+    verification_status: Mapped[str] = mapped_column(String(20), nullable=False, default="UNVERIFIED")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class OpportunityEstimate(Base):
+    __tablename__ = "opportunity_estimates"
+    __table_args__ = (
+        CheckConstraint("scenario IN ('PESSIMISTIC', 'BASE', 'OPTIMISTIC')", name="ck_opportunity_estimate_scenario"),
+        CheckConstraint("length(currency) = 3", name="ck_opportunity_estimate_currency"),
+        CheckConstraint("setup_cost IS NULL OR setup_cost >= 0", name="ck_opportunity_estimate_setup_cost"),
+        CheckConstraint("monthly_operating_cost IS NULL OR monthly_operating_cost >= 0", name="ck_opportunity_estimate_operating_cost"),
+        CheckConstraint("expected_monthly_revenue IS NULL OR expected_monthly_revenue >= 0", name="ck_opportunity_estimate_revenue"),
+        CheckConstraint("confidence_score IS NULL OR (confidence_score >= 0 AND confidence_score <= 100)", name="ck_opportunity_estimate_confidence"),
+        Index("ix_opportunity_estimates_opportunity_scenario_evaluated", "opportunity_id", "scenario", "evaluated_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    opportunity_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("opportunities.id", ondelete="RESTRICT"), nullable=False)
+    scenario: Mapped[str] = mapped_column(String(20), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    setup_cost: Mapped[Any | None] = mapped_column(Numeric(18, 6))
+    monthly_operating_cost: Mapped[Any | None] = mapped_column(Numeric(18, 6))
+    expected_monthly_revenue: Mapped[Any | None] = mapped_column(Numeric(18, 6))
+    expected_monthly_profit: Mapped[Any | None] = mapped_column(Numeric(18, 6))
+    expected_roi: Mapped[Any | None] = mapped_column(Numeric(18, 6))
+    break_even_months: Mapped[Any | None] = mapped_column(Numeric(18, 6))
+    confidence_score: Mapped[int | None] = mapped_column(Integer)
+    assumptions_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class OpportunityScoreDetail(Base):
+    __tablename__ = "opportunity_score_details"
+    __table_args__ = (
+        CheckConstraint("total_score >= 0 AND total_score <= 100", name="ck_opportunity_score_detail_total"),
+        Index("ix_opportunity_score_details_opportunity_created", "opportunity_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    opportunity_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("opportunities.id", ondelete="RESTRICT"), nullable=False)
+    scoring_version: Mapped[str] = mapped_column(String(50), nullable=False)
+    market_demand_score: Mapped[Any] = mapped_column(Numeric(6, 3), nullable=False)
+    monetization_score: Mapped[Any] = mapped_column(Numeric(6, 3), nullable=False)
+    automation_score: Mapped[Any] = mapped_column(Numeric(6, 3), nullable=False)
+    cost_efficiency_score: Mapped[Any] = mapped_column(Numeric(6, 3), nullable=False)
+    competitive_advantage_score: Mapped[Any] = mapped_column(Numeric(6, 3), nullable=False)
+    scalability_score: Mapped[Any] = mapped_column(Numeric(6, 3), nullable=False)
+    evidence_confidence_score: Mapped[Any] = mapped_column(Numeric(6, 3), nullable=False)
+    total_score: Mapped[Any] = mapped_column(Numeric(6, 3), nullable=False)
+    disqualified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    disqualification_reason: Mapped[str | None] = mapped_column(String(1000))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class OpportunityEvaluation(Base):
+    __tablename__ = "opportunity_evaluations"
+    __table_args__ = (Index("ix_opportunity_evaluations_opportunity_evaluated", "opportunity_id", "evaluated_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    opportunity_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("opportunities.id", ondelete="RESTRICT"), nullable=False)
+    scoring_version: Mapped[str] = mapped_column(String(50), nullable=False)
+    input_snapshot_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    result_snapshot_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    evaluated_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+

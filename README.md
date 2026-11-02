@@ -1,5 +1,26 @@
 # AUTO MONEY AI
 
+## Opportunity engine (Step 4 candidate)
+
+Owner-authenticated `/api/v1/opportunities` supports opportunity records, evidence,
+three financial scenarios, versioned scoring, risk disqualification, history,
+rankings and comparison. The existing Command Center now includes create/edit,
+evidence capture, scenario forms, evaluation and comparison of 2–5 opportunities.
+See [engine definitions](docs/architecture/OPPORTUNITIES.md). Estimates are not
+ledger transactions. Research remains manual; external execution is disabled.
+
+Isolated runtime tests (no production volume):
+
+```sh
+docker compose -p step4-test -f compose.step4-test.yml up --build -d --wait
+docker compose -p step4-test -f compose.step4-test.yml exec -T backend python -m pytest -q
+cd frontend
+E2E_BASE_URL=http://127.0.0.1:18005 npm run test:e2e
+```
+
+Test-only credentials in that Compose file must only be used on this loopback test
+environment. Step 4 is not RELEASED until GitHub release and CI are verified.
+
 Controlled autonomous-business platform. The first increment is deliberately limited to the control plane: a single-owner API, a registry of logical AI roles, audit history, idempotent configuration changes, and a small operational dashboard.
 
 ## Run locally

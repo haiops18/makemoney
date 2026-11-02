@@ -7,6 +7,7 @@ from app.api.routes import router
 from app.api.approval_routes import router as approval_router
 from app.api.finance_routes import router as finance_router
 from app.api.auth_routes import router as auth_router
+from app.api.opportunity_routes import router as opportunity_router
 from app.core.config import get_settings
 
 @asynccontextmanager
@@ -20,6 +21,7 @@ app.include_router(router)
 app.include_router(approval_router)
 app.include_router(finance_router)
 app.include_router(auth_router)
+app.include_router(opportunity_router)
 
 
 @app.get("/", include_in_schema=False)

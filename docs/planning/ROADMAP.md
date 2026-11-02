@@ -1,5 +1,8 @@
 # Roadmap
 
+Latest Step 4: backend/advanced UI implemented, isolated tests passed. Pending
+remaining acceptance/release gates; not RELEASED. See `docs/releases/STEP4_VERIFICATION.md`.
+
 1. **S2-M1 Policy & Approval:** implemented and verified.
 2. **S2-M2 Finance & Budget Reservation:** implemented and verified.
 3. **S2-M3 Opportunity Discovery & Scoring:** next.

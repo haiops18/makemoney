@@ -1,5 +1,15 @@
 # Known issues
 
+## Latest checkpoint — 2026-11-02
+
+The prior UI/database/test gaps below are historical: advanced forms exist,
+fresh PostgreSQL migration/constraints/concurrency passed and real API E2E passed.
+Remaining: GitHub device authentication and remote release gates, backend dependency
+audit, technical English field labels, BASE-only comparison UI and broader mobile/
+error-path coverage. Full Step 4 acceptance is not claimed.
+
+- 2026-11-02: Opportunity basic API-backed UI exists, but advanced evidence/estimate/evaluation/edit/compare UI and feature E2E remain incomplete. New migration has not yet been verified on an isolated PostgreSQL instance. Current mounted-source backend suite passes 15 tests; 2 PostgreSQL tests skipped.
+
 - The local Docker stack currently uses `.env.example`; its Owner key and PostgreSQL password must be replaced before any network exposure.
 - `GET /health/ready` currently reports process readiness rather than a live database probe.
 - Frontend has no browser/E2E/component test coverage yet; build and lint only are verified.

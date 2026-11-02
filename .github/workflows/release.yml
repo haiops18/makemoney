@@ -20,7 +20,20 @@ jobs:
         working-directory: frontend
       - run: pip install -r requirements.txt && python -m pytest
         working-directory: backend
+      - run: pip install pip-audit && pip-audit -r requirements.txt
+        working-directory: backend
       - run: chmod +x scripts/docker-smoke.sh && scripts/docker-smoke.sh
-      - run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
+      - run: docker compose -p step4-release -f compose.step4-test.yml up --build -d --wait
+      - run: docker compose -p step4-release -f compose.step4-test.yml exec -T backend python -m pytest -q
+      - run: npm run test:e2e
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: http://127.0.0.1:18005
+      - if: always()
+        run: docker compose -p step4-release -f compose.step4-test.yml down
+      - run: |
+          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
+          fi
         env:
           GH_TOKEN: ${{ github.token }}

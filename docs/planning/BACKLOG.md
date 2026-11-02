@@ -1,5 +1,11 @@
 # Backlog
 
+## Latest Step 4 remaining work
+
+- Finish technical field localization and broaden error/mobile form coverage.
+- Verify backend dependency audit, remote Step 3 release and current remote version.
+- Complete GitHub device auth, repository permissions, CI and controlled release.
+
 ## Next: S2-M3
 
 - Opportunity CRUD, evidence, estimates and versioned scoring.

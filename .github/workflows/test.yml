@@ -16,6 +16,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt
+      - run: pip install pip-audit && pip-audit -r requirements.txt
       - run: python -m pytest
   frontend:
     runs-on: ubuntu-latest
@@ -41,4 +42,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: chmod +x scripts/docker-smoke.sh && scripts/docker-smoke.sh
+  opportunity-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: docker compose -p step4-ci -f compose.step4-test.yml up --build -d --wait
+      - run: docker compose -p step4-ci -f compose.step4-test.yml exec -T backend python -m pytest -q
+      - run: npm ci && npx playwright install --with-deps chromium && npm run test:e2e
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: http://127.0.0.1:18005
+      - if: always()
+        run: docker compose -p step4-ci -f compose.step4-test.yml down
 

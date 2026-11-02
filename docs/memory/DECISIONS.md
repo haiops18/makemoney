@@ -1,5 +1,7 @@
 # Decisions
 
+- 2026-11-02: Scoring version is constrained by the server and risk input is mandatory; callers cannot label arbitrary rules as a new version or implicitly claim LOW risk. Financial definitions are documented in `docs/architecture/OPPORTUNITIES.md`.
+
 | Date | Decision | Reason |
 | --- | --- | --- |
 | 2026-10-31 | Keep the existing FastAPI modular-monolith layout. | Sprint 2 must extend, not rebuild, Sprint 1. |

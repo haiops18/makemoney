@@ -31,3 +31,9 @@
 - Added the local-only React Command Center and Docker nginx service.
 - Connected dashboard, workforce, approval, budget and audit APIs without storing an Owner token.
 - Added explicit unavailable states for non-existent Opportunity, Project and Workflow APIs.
+
+# Unreleased — Step 4 Opportunity Discovery
+
+- Added opportunity schema/API, Decimal scenarios, versioned scoring/risk disqualification and advisory comparisons.
+- Added existing React UI forms, scoring history and comparison, isolated PostgreSQL/Compose tests and real API Playwright verification.
+- Local results: 18 backend, 7 frontend, 2 Playwright passed. Release/version pending authenticated remote verification.

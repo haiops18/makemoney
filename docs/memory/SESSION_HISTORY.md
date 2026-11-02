@@ -1,5 +1,29 @@
 # Session history
 
+## 2026-11-02 — GitHub authentication restored
+
+- Verified haiops18 login, push/admin permissions, no main protection/rulesets, latest release v26.4.0 and baseline CI success. That release includes migrations 0001–0003.
+- Target candidate v27.0.0; not tagged/released. Working branch feat/step4-opportunity-engine.
+- Added transaction advisory lock for idempotency and integrity/financial overflow guards; four concurrent API retries verified as one audited mutation. Backend source suite now 19 passed on isolated PostgreSQL.
+- Backend dependency audit identified pytest vulnerability; upgraded to >=9.0.3,<10; repeat pip-audit clean. Frontend remains 12 moderate dev-tool findings, no high/critical.
+- Local frontend lint/build/7 tests and 2 runtime Playwright tests passed again. Three-scenario comparison selector and localized descriptive labels added.
+
+## 2026-11-02 — Five requested follow-up tasks
+
+- Implemented edit/evidence/scenario/evaluation forms, score breakdown/history and 2–5 comparison UI.
+- Added detail component tests and real-backend Playwright business flow; updated navigation unavailable test to Projects.
+- Created isolated `compose.step4-test.yml` without production volumes; fresh PostgreSQL migration passed. Rebuilt Compose backend tests: 18 passed, zero skipped. Frontend: 7 tests passed plus lint/typecheck/build; Playwright: 2 passed on Compose loopback 18005.
+- Added CI/tag verification for real PostgreSQL and runtime E2E. npm audit high gate passed with 12 moderate dev-only findings.
+- Started supported GitHub device login; Owner authentication still pending. No remote version/permissions/CI/release claims. See docs/releases/STEP4_VERIFICATION.md for limits.
+
+## 2026-11-02 — S2-M3 continuation
+
+- Tested mounted working-tree source rather than the prebuilt Docker image; found and fixed SQLite-incompatible currency constraint causing 12 regression setup failures.
+- Added lifecycle/auth/idempotency/disqualification and Decimal financial tests. Source suite: 15 passed, 2 PostgreSQL tests skipped.
+- Scoring version is server-constrained; risk input is mandatory. Added row locking, null validation, disqualification transition guard and paginated evaluation history.
+- Replaced unavailable Opportunities route with API-backed create/search/status filter/pagination/basic details. Frontend lint/typecheck/build and 4 existing tests pass; these tests do not cover the new screen.
+- GitHub CLI token is invalid. RELEASE_BLOCKED; no commit, push, tag or release. Advanced opportunity forms, comparison UI, feature component/E2E tests, PostgreSQL migration/concurrency and runtime checks remain outstanding.
+
 ## 2026-10-31 — Sprint 2 recovery
 
 - Verified repository root, Git branch and current commit.
