@@ -79,3 +79,8 @@ merge, unique annotated tag and verified GitHub Release; not yet RELEASED.
 - Dependency audits: pip-audit clean; npm high/critical gate clean (12 moderate
   dev-tool findings). Scoped secret-signature review and diff whitespace check passed.
 - CI for earlier candidates passed; final commit CI remains required before merge.
+- Visual review at 375px exposed native input/table contrast problems. Added
+  scoped light/dark form/table styling and reviewed the corrected screenshot;
+  document scroll width equals viewport width (375px). Expanded real E2E passed
+  again with the corrected runtime. Migration downgrade now fails closed to
+  preserve history (forward-only).

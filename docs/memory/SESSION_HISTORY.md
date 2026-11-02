@@ -1,5 +1,10 @@
 # Session history
 
+## 2026-11-02 — Visual and migration review
+
+- Reviewed real mobile screenshot at 375px, fixed dark-mode input/table contrast and scoped form spacing. Corrected screenshot and viewport/document width (375/375) verified; real runtime Playwright 2 passed again.
+- Forward-only opportunity migration now explicitly refuses downgrade data deletion. Final source CI must pass before merge/tag.
+
 ## 2026-11-02 — v27.0.0 final local gate
 
 - Completed KPI overview, financial list fields, saved detail metadata, confidence/validation-time comparison and all-scenario selector.
