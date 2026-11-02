@@ -1,0 +1,52 @@
+import { expect, test } from '@playwright/test';
+
+test('real API: Owner creates evidence, estimate, evaluates and compares', async ({ page, request }) => {
+  test.skip(!process.env.E2E_BASE_URL, 'Requires isolated runtime with real PostgreSQL');
+  expect((await request.get('/api/v1/opportunities')).status()).toBe(401);
+  await page.goto('/opportunities');
+  await page.getByLabel('Tên đăng nhập Admin').fill('admin');
+  await page.getByLabel('Mật khẩu Admin').fill(process.env.E2E_ADMIN_PASSWORD || 'change-me-admin-password');
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  const name = `E2E research ${Date.now()}`;
+  await page.getByLabel('Tên cơ hội').fill(name);
+  await page.getByRole('button', { name: 'Tạo cơ hội' }).click();
+  await page.getByRole('button', { name, exact: true }).click();
+  await page.getByLabel('description', { exact: true }).fill('Owner-edited test description');
+  await page.getByRole('button', { name: 'Lưu Chỉnh sửa' }).click();
+  await expect(page.getByText('Đã lưu và xác minh phản hồi.')).toBeVisible();
+  await page.getByRole('button', { name: 'Bằng chứng', exact: true }).click();
+  for (const [field, value] of Object.entries({ source_name: 'Owner interview', source_type: 'INTERVIEW', evidence_type: 'DEMAND', summary: 'Test-only interview evidence' })) await page.getByLabel(field, { exact: true }).fill(value);
+  await page.getByRole('button', { name: 'Lưu Bằng chứng' }).click();
+  await expect(page.getByText('Owner interview — UNVERIFIED')).toBeVisible();
+  await page.getByRole('button', { name: 'Kịch bản tài chính', exact: true }).click();
+  for (const [field, value] of Object.entries({ setup_cost: '10', monthly_operating_cost: '2', expected_monthly_revenue: '5', notes: 'Test-only constant cash flow' })) await page.getByLabel(field, { exact: true }).fill(value);
+  for (const scenario of ['PESSIMISTIC', 'BASE', 'OPTIMISTIC']) {
+    await page.locator('select[name="scenario"]').selectOption(scenario);
+    await page.getByRole('button', { name: 'Lưu Kịch bản tài chính' }).click();
+    await expect(page.getByRole('cell', { name: scenario, exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole('cell', { name: '3.000000', exact: true })).toHaveCount(3);
+  await page.getByRole('button', { name: 'Đánh giá', exact: true }).click();
+  for (const field of ['market_demand', 'monetization_potential', 'automation_feasibility', 'experiment_cost', 'competitive_advantage', 'scalability', 'evidence_confidence']) await page.getByLabel(field, { exact: true }).fill('80');
+  await page.locator('select[name="risk_level"]').selectOption('LOW');
+  await page.locator('textarea[name="risk_assessment"]').fill('Owner test risk review');
+  await page.getByRole('button', { name: 'Lưu Đánh giá' }).click();
+  await expect(page.getByText('2026.11.1: 80.000/100 — EVALUATED')).toBeVisible();
+  await page.getByLabel('Tên cơ hội').fill(name + ' second');
+  await page.getByRole('button', { name: 'Tạo cơ hội' }).click();
+  await page.getByLabel(`Compare ${name}`, { exact: true }).check();
+  await page.getByLabel(`Compare ${name} second`, { exact: true }).check();
+  await expect(page.getByText('Comparison supports Owner review only.', { exact: false })).toBeVisible();
+  await page.getByLabel('Kịch bản so sánh').selectOption('OPTIMISTIC');
+  await page.getByRole('button', { name: 'Đánh giá', exact: true }).click();
+  for (const field of ['market_demand', 'monetization_potential', 'automation_feasibility', 'experiment_cost', 'competitive_advantage', 'scalability', 'evidence_confidence']) await page.getByLabel(field, { exact: true }).fill('100');
+  await page.locator('select[name="risk_level"]').selectOption('SEVERE');
+  await page.locator('textarea[name="risk_assessment"]').fill('Test-only severe legal risk');
+  await page.getByRole('button', { name: 'Lưu Đánh giá' }).click();
+  await expect(page.getByText('2026.11.1: 100.000/100 — DISQUALIFIED')).toBeVisible();
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(page.getByRole('heading', { name: 'Chi tiết điểm' })).toBeVisible();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.getByRole('link', { name: 'Nhật ký audit' }).click();
+  await expect(page.getByText('opportunity.evaluated').first()).toBeVisible();
+});

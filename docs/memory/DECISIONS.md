@@ -1,5 +1,11 @@
 # Decisions
 
+- 2026-11-02: Candidate v27.0.0 follows verified remote v26.4.0 (MAJOR feature policy). Use a PR and successful CI before merge/tag; Owner already authorized controlled release.
+- 2026-11-02: ROI uses a one-month net return including upfront investment: (monthly profit - setup cost) / setup cost * 100. Persist calculation version/period in assumptions. Zero investment keeps ROI UNKNOWN.
+- 2026-11-02: PostgreSQL transaction advisory locks serialize retries by Owner/idempotency key; duplicate concurrent requests must create one mutation and audit event.
+
+- 2026-11-02: Scoring version is constrained by the server and risk input is mandatory; callers cannot label arbitrary rules as a new version or implicitly claim LOW risk. Financial definitions are documented in `docs/architecture/OPPORTUNITIES.md`.
+
 | Date | Decision | Reason |
 | --- | --- | --- |
 | 2026-10-31 | Keep the existing FastAPI modular-monolith layout. | Sprint 2 must extend, not rebuild, Sprint 1. |

@@ -16,3 +16,8 @@ Money, usage, opportunities and workflows are not part of this migration. No exi
 ## Sprint 2 Module 2 — Finance & Budget
 
 Migration `20261031_0003_budget_reservations` adds `budget_accounts`, `budget_reservations`, `usage_records` and `cost_records`. All monetary fields are `NUMERIC(18,6)` in USD. An expired reservation remains committed until a settle/release operation supplies its actual cost.
+# Step 4 schema addition
+
+Forward migration `20261102_0004` extends `20261031_0003` with opportunities,
+evidence, estimates, score details and evaluation history. Verified against fresh
+PostgreSQL 16; no production volume reset. See [engine schema](OPPORTUNITIES.md).

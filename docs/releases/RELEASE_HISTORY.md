@@ -1,5 +1,17 @@
 # Release history
 
+## v27.0.0 candidate — Step 4
+
+Baseline remote release v26.4.0 verified; target MAJOR v27.0.0 is unique as of
+preflight. GitHub login and push/admin permission verified, PR #2 created.
+32 backend and 9 frontend tests passed locally; final runtime/CI/tag/release
+verification pending. No completed/released claim is made at this checkpoint.
+
+## Step 4 — RELEASE_BLOCKED — 2026-11-02
+
+No tag/release created. Supported GitHub device login awaits Owner authentication.
+Local verification and remaining acceptance gaps: [Step 4 checkpoint](STEP4_VERIFICATION.md).
+
 ## RELEASE_BLOCKED — 2026-10-31
 
 No tag or GitHub Release was created. The repository has no existing tag/release, but mandatory gates are incomplete: frontend component/E2E/browser tests and Docker runtime verification are not complete; `npm audit --audit-level=critical` reports two critical development dependency vulnerabilities. No commit/push/release was performed in this checkpoint.

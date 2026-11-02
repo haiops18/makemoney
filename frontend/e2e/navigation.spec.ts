@@ -21,8 +21,8 @@ test("admin login, language switch, unavailable module, and mobile navigation", 
   await expect(page.getByText("Tổng agent")).toBeVisible();
   await page.getByLabel("Chuyển ngôn ngữ").click();
   await expect(page.getByText("Dashboard")).toBeVisible();
-  await page.getByText("Opportunities", { exact: true }).click();
-  await expect(page.getByText("Opportunities is unavailable")).toBeVisible();
+  await page.getByText("Projects", { exact: true }).click();
+  await expect(page.getByText("Projects is unavailable")).toBeVisible();
   await page.setViewportSize({ width: 375, height: 667 });
   await page.getByLabel("Open").click();
   await expect(page.getByText("Finance & Budget")).toBeVisible();

@@ -1,0 +1,27 @@
+.opportunity-center input:not([type="checkbox"]),
+.opportunity-center select,
+.opportunity-center textarea {
+  width: 100%; min-width: 0; box-sizing: border-box; padding: 9px 11px;
+  border: 1px solid #d8e1ef; border-radius: 9px; background: #fff;
+  color: inherit; font: inherit;
+}
+.dark .opportunity-center input:not([type="checkbox"]),
+.dark .opportunity-center select,
+.dark .opportunity-center textarea {
+  background: #101a30; border-color: #344767; color: #e9eefb;
+}
+.opportunity-center form.details { display: block; }
+.opportunity-center .field { margin-bottom: 13px; }
+.opportunity-center .field:has(input[type="checkbox"]) { display: flex; align-items: center; }
+.opportunity-center table { width: 100%; min-width: 900px; border-collapse: collapse; color: inherit; font-size: 13px; }
+.opportunity-center th, .opportunity-center td {
+  color: inherit; padding: 12px; text-align: left; border-bottom: 1px solid #d8e1ef;
+  vertical-align: top;
+}
+.dark .opportunity-center th, .dark .opportunity-center td { border-color: #344767; }
+.opportunity-center h3 { font-size: 15px; margin-top: 25px; }
+.opportunity-center .row { flex-wrap: wrap; }
+.opportunity-center .row button, .opportunity-center dd, .opportunity-center p { overflow-wrap: anywhere; }
+.opportunity-center .row span { min-width: 0; }
+.opportunity-center meter { display: block; width: min(100%, 400px); margin: 5px 0 12px; }
+.opportunity-center .kpis { margin-bottom: 20px; }
