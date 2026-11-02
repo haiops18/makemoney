@@ -1,5 +1,14 @@
 # Current task
 
+## Latest: S2-M3 / Step 4 RELEASED
+
+Release v27.0.0 verified at `5f7441c7677ebecb1e232d4be79acf0657916dca`:
+https://github.com/haiops18/makemoney/releases/tag/v27.0.0
+Main/tag/release CI PASS; 32 backend / 10 frontend / 2 Playwright tests passed.
+No feature work remains in this release checkpoint. Next roadmap module is
+S2-M4 internal Workflow Orchestration; await Owner scope before implementation.
+Historical recovery notes below are preserved.
+
 **Task ID:** S2-M3
 
 Final local gates passed: 32 backend, 10 frontend, 2 real-runtime Playwright.

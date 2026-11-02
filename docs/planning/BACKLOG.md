@@ -1,5 +1,11 @@
 # Backlog
 
+## After v27.0.0 release
+
+Step 4 is RELEASED; prior auth/runtime/release tasks below are closed.
+Next module: internal Workflow Orchestration (new Owner scope). Maintenance:
+moderate frontend tooling audit findings, readiness DB probe and dashboard copy.
+
 ## Latest Step 4 remaining work
 
 - Finish technical field localization and broaden error/mobile form coverage.

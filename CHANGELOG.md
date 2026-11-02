@@ -1,5 +1,16 @@
 # Changelog
 
+## v27.0.0 — 2026-11-02 — RELEASED
+
+- Opportunity database/API, manual evidence, Decimal financial scenarios, weighted
+  versioned scoring, severe-risk disqualification, evaluation history and advisory comparisons.
+- React overview KPIs, editable opportunities, evidence/scenario/evaluation forms,
+  financial/score detail and 2–5 comparison with responsive light/dark styling.
+- PostgreSQL idempotency concurrency, immutable audits, forward-only migration,
+  scoped secret review, dependency audits and real API CI/E2E verification.
+- Verified: 32 backend, 10 frontend, 2 Playwright tests; main/tag/release CI PASS.
+- Release: https://github.com/haiops18/makemoney/releases/tag/v27.0.0
+
 ## v26.4.0 — Frontend Stabilization
 
 - Moved React bootstrap into `main.tsx` and application shell into `src/app/App.tsx`.

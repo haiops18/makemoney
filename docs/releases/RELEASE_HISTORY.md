@@ -1,5 +1,18 @@
 # Release history
 
+## v27.0.0 — Step 4 RELEASED — 2026-11-02
+
+- URL: https://github.com/haiops18/makemoney/releases/tag/v27.0.0
+- Release source SHA: `5f7441c7677ebecb1e232d4be79acf0657916dca` (PR #2).
+- Annotated tag object: `2c0e81e181bba4a6ba77f2eb505b852cb22ab275`.
+- Published: `2026-11-02T06:47:04Z`; draft=false, prerelease=false.
+- Main CI: https://github.com/haiops18/makemoney/actions/runs/41401325975 — PASS.
+- Tag CI: https://github.com/haiops18/makemoney/actions/runs/41401763676 — PASS.
+- Release workflow: https://github.com/haiops18/makemoney/actions/runs/41401763624 — PASS.
+- Tests: 32 backend, 10 frontend, 2 Playwright; PostgreSQL/Docker/security gates verified.
+- Known: 12 moderate frontend dev-tool findings; backend audit clean, no frontend high/critical.
+- Status: Step 4 COMPLETED. Historical blocked/candidate checkpoints below retained.
+
 ## v27.0.0 candidate — Step 4
 
 Baseline remote release v26.4.0 verified; target MAJOR v27.0.0 is unique as of

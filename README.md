@@ -1,6 +1,9 @@
 # AUTO MONEY AI
 
-## Opportunity engine (Step 4 candidate)
+## Opportunity engine — Step 4 RELEASED (v27.0.0)
+
+[GitHub Release](https://github.com/haiops18/makemoney/releases/tag/v27.0.0)
+verified at commit `5f7441c7677ebecb1e232d4be79acf0657916dca`.
 
 Owner-authenticated `/api/v1/opportunities` supports opportunity records, evidence,
 three financial scenarios, versioned scoring, risk disqualification, history,
@@ -19,7 +22,7 @@ E2E_BASE_URL=http://127.0.0.1:18005 npm run test:e2e
 ```
 
 Test-only credentials in that Compose file must only be used on this loopback test
-environment. Step 4 is not RELEASED until GitHub release and CI are verified.
+environment. Release and tag CI passed; see `docs/releases/STEP4_VERIFICATION.md`.
 
 Controlled autonomous-business platform. The first increment is deliberately limited to the control plane: a single-owner API, a registry of logical AI roles, audit history, idempotent configuration changes, and a small operational dashboard.
 
@@ -31,7 +34,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-The API is available at `http://localhost:8000`, OpenAPI at `/docs`, and health probes at `/health/live` and `/health/ready`. All `/api/v1/*` routes require `Authorization: Bearer $OWNER_API_KEY`.
+The API is available at `http://localhost:8000`, OpenAPI at `/docs`, and health probes at `/health/live` and `/health/ready`. Protected `/api/v1/*` routes require an Owner bearer token. `/api/v1/auth/login` exchanges Admin credentials for a temporary in-memory Owner session.
 
 ## Current scope
 
@@ -74,14 +77,14 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. Enter the Owner token only into the in-memory session field; never set it in `VITE_*` or commit it. `docker compose up --build` also serves the frontend at `http://localhost:3000`, with `/api` and `/health` reverse-proxied to the backend.
+Open `http://localhost:5173` and sign in using the configured Admin credentials. The Owner session token stays in browser memory; never set it in `VITE_*` or commit it. `docker compose up --build` also serves the frontend at `http://localhost:3000`, with `/api` and `/health` reverse-proxied to the backend.
 
-The command center is Vietnamese by default and can switch to English. It presents only API-verified dashboard, agent, approval, budget, cost, usage and audit data. Opportunity, Project and Workflow pages remain explicitly unavailable until their backend APIs exist.
+The command center is Vietnamese by default and can switch to English. It presents API-backed dashboard, agent, approval, budget, opportunity and audit records. Opportunity scenarios remain explicitly estimated. Project and Workflow pages remain unavailable until their backend APIs exist.
 
 ## Project decisions
 
 - PostgreSQL is the system of record; Redis is present for the scheduled worker phase but is not trusted for business state.
 - A deployment fails in `production` if the example owner key is still configured.
-- Monetary limits remain policy configuration until the finance/budget-reservation migration is added; no endpoint claims to enforce the $50 cap yet.
-- No React frontend, AI execution, payment, publication, web research, or untrusted-code sandbox is implemented yet.
+- Numeric budget accounts and atomic reservations enforce the configured internal-work budget; they do not reconcile delayed external provider invoices.
+- The React command center is implemented. AI execution, payment, business publication, web research and untrusted-code sandboxing remain disabled or unimplemented.
 
