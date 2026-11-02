@@ -1,6 +1,29 @@
 from decimal import Decimal
+import pytest
+
+from app.api.opportunity_schemas import OpportunityEvaluate
+from app.opportunities.service import calculate_score
 
 from app.opportunities.service import financial_values
+
+
+@pytest.mark.parametrize('rating,recommendation', [(100, 'HIGH PRIORITY'), (85, 'HIGH PRIORITY'), (84, 'PROMISING'), (75, 'PROMISING'), (74, 'NEEDS RESEARCH'), (50, 'NEEDS RESEARCH'), (49, 'LOW PRIORITY'), (0, 'LOW PRIORITY')])
+def test_scoring_thresholds(rating, recommendation):
+    from app.opportunities.service import WEIGHTS
+    payload = OpportunityEvaluate(scores={key: rating for key in WEIGHTS}, risk_level='LOW')
+    weighted, total, disqualified, _, result = calculate_score(payload)
+    assert total == rating
+    assert sum(weighted.values()) == total
+    assert not disqualified
+    assert result == recommendation
+
+
+@pytest.mark.parametrize('risk', ['SEVERE_LEGAL_RISK', 'SEVERE_COPYRIGHT_RISK', 'SEVERE_PLATFORM_POLICY_VIOLATION', 'FRAUD_INDICATOR', 'PROHIBITED_OPERATION'])
+def test_every_disqualifier_overrides_perfect_score(risk):
+    from app.opportunities.service import WEIGHTS
+    payload = OpportunityEvaluate(scores={key: 100 for key in WEIGHTS}, risk_level='LOW', disqualifiers=[risk])
+    _, total, disqualified, reason, result = calculate_score(payload)
+    assert total == 100 and disqualified and reason and result == 'DISQUALIFIED'
 
 
 def test_financial_unknown_and_zero_investment():

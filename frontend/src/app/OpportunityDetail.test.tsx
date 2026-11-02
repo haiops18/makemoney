@@ -6,17 +6,19 @@ import { OpportunityDetail, OpportunityComparison } from './OpportunityDetail';
 
 afterEach(cleanup);
 const wrap = (child: React.ReactNode) => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>{child}</QueryClientProvider>);
+const record = { title: 'Research', description: null, target_market: null, target_customer: null, monetization_method: null };
 
 it('renders empty evidence, estimates and unknown scoring without invented values', async () => {
-  wrap(<OpportunityDetail id="test" title="Research" request={vi.fn().mockResolvedValue([])}/>);
-  expect(await screen.findByText('UNKNOWN')).toBeInTheDocument();
+  wrap(<OpportunityDetail id="test" title="Research" request={vi.fn(async path => path === '/test' ? record : [])}/>);
+  expect((await screen.findAllByText('UNKNOWN')).length).toBeGreaterThan(0);
   fireEvent.click(screen.getByRole('button', { name: 'Kịch bản tài chính' }));
   expect(screen.getByLabelText('setup_cost')).toHaveValue('');
 });
 
 it('edits without clearing unspecified fields and provides an idempotency key', async () => {
-  const request = vi.fn(async (_path: string, init?: RequestInit) => init ? { id: 'test', title: 'Updated' } : []);
+  const request = vi.fn(async (path: string, init?: RequestInit) => init ? { id: 'test', title: 'Updated' } : path === '/test' ? record : []);
   wrap(<OpportunityDetail id="test" title="Research" request={request}/>);
+  await waitFor(() => expect(request).toHaveBeenCalledWith('/test/evaluations'));
   fireEvent.change(screen.getByLabelText('title'), { target: { value: 'Updated' } });
   fireEvent.click(screen.getByRole('button', { name: 'Lưu Chỉnh sửa' }));
   await screen.findByText('Đã lưu và xác minh phản hồi.');
@@ -32,4 +34,20 @@ it('shows failed detail requests and rejects comparison below two selections', a
   cleanup(); request.mockClear();
   wrap(<OpportunityComparison ids={[]} request={request}/>);
   await waitFor(() => expect(request).not.toHaveBeenCalled());
+});
+
+it('renders untrusted evidence as text and does not insert HTML', async () => {
+  const request = vi.fn(async (path: string) => path === '/test' ? record : path.endsWith('/evidence') ? [{ id: 'evidence', source_name: 'Interview', verification_status: 'UNVERIFIED', summary: '<img src=x onerror=alert(1)>' }] : []);
+  const { container } = wrap(<OpportunityDetail id="test" title="Research" request={request}/>);
+  expect(await screen.findByText('<img src=x onerror=alert(1)>')).toBeInTheDocument();
+  expect(container.querySelector('img')).toBeNull();
+});
+
+it('does not report success when a mutation response fails validation', async () => {
+  const request = vi.fn(async (path: string, init?: RequestInit) => init ? { id: 'wrong-record', title: 'Updated' } : path === '/test' ? record : []);
+  wrap(<OpportunityDetail id="test" title="Research" request={request}/>);
+  await screen.findByText('Mô tả');
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu Chỉnh sửa' }));
+  await screen.findByRole('alert');
+  expect(screen.queryByText('Đã lưu và xác minh phản hồi.')).not.toBeInTheDocument();
 });

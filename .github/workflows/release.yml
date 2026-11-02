@@ -24,7 +24,7 @@ jobs:
         working-directory: backend
       - run: chmod +x scripts/docker-smoke.sh && scripts/docker-smoke.sh
       - run: docker compose -p step4-release -f compose.step4-test.yml up --build -d --wait
-      - run: docker compose -p step4-release -f compose.step4-test.yml exec -T backend python -m pytest -q
+      - run: docker compose -p step4-release -f compose.step4-test.yml exec -T backend timeout 120 python -m pytest -vv -o faulthandler_timeout=30
       - run: npm run test:e2e
         working-directory: frontend
         env:
