@@ -1,5 +1,18 @@
 # Session history
 
+## 2026-11-02 — Step 4 v27.0.0 RELEASED
+
+- PR #2 merged normally after all checks passed. Tested merge commit:
+  `5f7441c7677ebecb1e232d4be79acf0657916dca`; source tree matches candidate.
+- Main CI 41401325975 passed before unique annotated v27.0.0 tag was created/pushed.
+- Tag CI 41401763676 and release workflow 41401763624 passed. Workflow created
+  published release https://github.com/haiops18/makemoney/releases/tag/v27.0.0
+  at 06:47:04 UTC. Tag object 2c0e81e181bba4a6ba77f2eb505b852cb22ab275 peels to tested commit.
+- Step 4 marked RELEASED/COMPLETED only after URL/SHA/CI verification. Post-release
+  documentation is recorded separately from immutable released source.
+- Standalone test containers stopped without deletion; isolated Compose test
+  remains available at loopback 18005. No production database/volumes reset.
+
 ## 2026-11-02 — Visual and migration review
 
 - Reviewed real mobile screenshot at 375px, fixed dark-mode input/table contrast and scoped form spacing. Corrected screenshot and viewport/document width (375/375) verified; real runtime Playwright 2 passed again.

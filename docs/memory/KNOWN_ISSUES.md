@@ -1,5 +1,16 @@
 # Known issues
 
+## Released v27.0.0 — current issues
+
+- GitHub auth/release, PostgreSQL migration/concurrency, advanced UI and runtime
+  E2E blockers below are resolved; release and tag CI verified PASS.
+- Twelve moderate frontend dev-tool findings remain with no compatible automated
+  fix; no high/critical frontend findings. Backend pip-audit is clean.
+- Domain enums remain English identifiers in the bilingual UI. No automated AI
+  discovery, provider reconciliation or external execution is claimed.
+- Existing control-plane readiness and dashboard copy improvements remain backlog
+  items; this release did not deploy business execution or reset production data.
+
 ## v27.0.0 candidate review (supersedes earlier open items)
 
 GitHub authentication restored. Fresh PostgreSQL migrations/concurrency and

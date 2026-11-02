@@ -1,5 +1,16 @@
 # AUTO MONEY AI — yêu cầu gốc và hiện trạng
 
+## Latest — Step 4 RELEASED / COMPLETED — 2026-11-02
+
+- Release: https://github.com/haiops18/makemoney/releases/tag/v27.0.0
+- Commit: `5f7441c7677ebecb1e232d4be79acf0657916dca`, annotated tag `v27.0.0`.
+- Main CI 41401325975, tag CI 41401763676 and release workflow 41401763624 all PASS.
+- Gates: 32 backend / 10 frontend / 2 Playwright passed; PostgreSQL migration,
+  constraints/concurrency, Docker runtime, audit and secret review verified.
+- Opportunity Engine is manual Owner-entered research; external execution stays disabled.
+- Known issue: 12 moderate frontend dev-tool findings; no high/critical, backend audit clean.
+- Earlier sections below are preserved historical snapshots, not the latest module status.
+
 > Cập nhật: 2026-10-31 (Asia/Ho_Chi_Minh). Tài liệu này phản ánh code và Docker stack đang có, không phải roadmap giả định.
 
 ## 1. Mục đích gốc

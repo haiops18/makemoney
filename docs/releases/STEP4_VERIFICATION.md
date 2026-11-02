@@ -1,5 +1,16 @@
 # Step 4 verification checkpoint — 2026-11-02
 
+## Final release verification — PASS
+
+Step 4 RELEASED / COMPLETED: https://github.com/haiops18/makemoney/releases/tag/v27.0.0
+Published 2026-11-02T06:47:04Z, draft=false, prerelease=false. Tested source SHA
+`5f7441c7677ebecb1e232d4be79acf0657916dca`; annotated tag object
+`2c0e81e181bba4a6ba77f2eb505b852cb22ab275` peels to that SHA.
+PR #2/main CI 41401325975, tag CI 41401763676 and release workflow 41401763624 PASS.
+The workflow created the release after all repeated gates succeeded. Final counts:
+32 backend, 10 frontend, 2 Playwright passed. Earlier pending statements below are
+historical recovery evidence and superseded by this verified result.
+
 Feature ID: S2-M3 / STEP4. Baseline: baa42e5b16fed914a4cd26dbe66d3464cfe2399a.
 Target candidate: v27.0.0 (remote latest v26.4.0 verified; no new tag created).
 Business requirement: Owner records and compares opportunities with explicit

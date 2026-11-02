@@ -1,5 +1,8 @@
 # Roadmap
 
+Current: S2-M3 / Step 4 RELEASED as v27.0.0 (verified GitHub release and CI).
+Next: S2-M4 internal Workflow Orchestration under Owner-approved scope; no external execution.
+
 Latest Step 4: backend/advanced UI implemented, isolated tests passed. Pending
 remaining acceptance/release gates; not RELEASED. See `docs/releases/STEP4_VERIFICATION.md`.
 

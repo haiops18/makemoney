@@ -1,5 +1,16 @@
 # Project status
 
+## Step 4 — RELEASED / COMPLETED — v27.0.0
+
+Verified release: https://github.com/haiops18/makemoney/releases/tag/v27.0.0
+at `5f7441c7677ebecb1e232d4be79acf0657916dca` (published 2026-11-02 06:47:04 UTC).
+Main CI 41401325975, tag CI 41401763676 and release workflow 41401763624 succeeded.
+Database migration 0004, CRUD/evidence/scenarios/scoring/disqualification/comparison,
+existing React UI and isolated Docker/PostgreSQL gates verified. Tests: 32 backend,
+10 frontend, 2 Playwright passed. Backend dependency audit clean; frontend retains
+12 moderate dev-tool findings, no high/critical. No external execution or paid AI.
+Earlier candidate/blocker sections below are historical and superseded.
+
 ## Final local gates — v27.0.0
 
 32 backend / 10 frontend / 2 Playwright tests passed. Real API E2E covers edit,
