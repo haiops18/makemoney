@@ -39,3 +39,10 @@ def test_opportunity_lifecycle(client, auth_headers):
     comparison = client.post('/api/v1/opportunities/compare', json={'opportunity_ids': [item['id'], other['id']]}, headers=auth_headers)
     assert comparison.status_code == 200
     assert comparison.json()['items'][-1]['opportunity']['status'] == 'DISQUALIFIED'
+    summary = client.get('/api/v1/opportunities/summary', headers=auth_headers).json()
+    assert summary['total'] == 2
+    assert summary['disqualified'] == 1
+    detail = client.get(path, headers=auth_headers).json()
+    assert Decimal(detail['estimated_monthly_profit']) == 3
+    assert detail['last_evaluated'] is not None
+    assert client.post(path + '/estimates', json={**estimate, 'setup_cost': '0.000001', 'expected_monthly_revenue': '999999999999'}, headers={**auth_headers, 'Idempotency-Key': 'overflow'}).status_code == 422

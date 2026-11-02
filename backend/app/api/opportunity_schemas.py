@@ -75,6 +75,12 @@ class OpportunityResponse(BaseModel):
     created_by: str
     created_at: datetime
     updated_at: datetime
+    last_evaluated: datetime | None = None
+    estimated_setup_cost: Decimal | None = None
+    estimated_monthly_cost: Decimal | None = None
+    estimated_monthly_profit: Decimal | None = None
+    estimated_roi: Decimal | None = None
+    estimate_currency: str | None = None
 
 
 class OpportunityListResponse(BaseModel):
@@ -232,6 +238,7 @@ class CompareRequest(BaseModel):
 
 
 class ComparisonItem(BaseModel):
+    currency: str | None = None
     opportunity: OpportunityResponse
     scenario: str
     setup_cost: Decimal | None

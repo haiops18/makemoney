@@ -79,6 +79,19 @@ def _latest_estimate(db: Session, opportunity_id: UUID, scenario: str) -> Opport
     return db.scalar(select(OpportunityEstimate).where(OpportunityEstimate.opportunity_id == opportunity_id, OpportunityEstimate.scenario == scenario).order_by(OpportunityEstimate.evaluated_at.desc(), OpportunityEstimate.id.desc()))
 
 
+def _response(db: Session, opportunity: Opportunity) -> OpportunityResponse:
+    result = OpportunityResponse.model_validate(opportunity)
+    result.last_evaluated = db.scalar(select(func.max(OpportunityEvaluation.evaluated_at)).where(OpportunityEvaluation.opportunity_id == opportunity.id))
+    estimate = _latest_estimate(db, opportunity.id, "BASE")
+    if estimate:
+        result.estimated_setup_cost = estimate.setup_cost
+        result.estimated_monthly_cost = estimate.monthly_operating_cost
+        result.estimated_monthly_profit = estimate.expected_monthly_profit
+        result.estimated_roi = estimate.expected_roi
+        result.estimate_currency = estimate.currency
+    return result
+
+
 @router.get("", response_model=OpportunityListResponse)
 def list_opportunities(
     search: str | None = None, business_model: str | None = None, status_filter: str | None = None, category: str | None = None,
@@ -104,7 +117,16 @@ def list_opportunities(
     total = db.scalar(select(func.count()).select_from(statement.subquery())) or 0
     ordering = asc(columns[sort_by]) if sort_dir == "asc" else desc(columns[sort_by])
     items = list(db.scalars(statement.order_by(ordering, Opportunity.id).offset(offset).limit(limit)))
-    return OpportunityListResponse(items=[OpportunityResponse.model_validate(item) for item in items], total=total, limit=limit, offset=offset)
+    return OpportunityListResponse(items=[_response(db, item) for item in items], total=total, limit=limit, offset=offset)
+
+
+@router.get("/summary")
+def opportunity_summary(db: Session = Depends(get_db)) -> dict[str, Any]:
+    def count(*conditions):
+        return db.scalar(select(func.count()).select_from(Opportunity).where(*conditions)) or 0
+    eligible = Opportunity.status.notin_(["DISQUALIFIED", "ARCHIVED"])
+    average = db.scalar(select(func.avg(Opportunity.score)))
+    return {"total": count(), "high_priority": count(eligible, Opportunity.score >= 85), "promising": count(eligible, Opportunity.score >= 75, Opportunity.score < 85), "needs_research": count(eligible, Opportunity.score >= 50, Opportunity.score < 75), "disqualified": count(Opportunity.status == "DISQUALIFIED"), "evaluated": count(Opportunity.score.is_not(None)), "average_score": str(average) if average is not None else None}
 
 
 @router.get("/rankings", response_model=RankingsResponse)
@@ -141,7 +163,7 @@ def compare(body: CompareRequest, db: Session = Depends(get_db)) -> CompareRespo
         if opportunity.risk_level == "LOW": reasons.append("Low recorded risk")
         if estimate is None: reasons.append(f"{body.scenario} financial scenario is UNKNOWN")
         elif estimate.setup_cost is not None: reasons.append("Financial scenario is an estimate, not confirmed revenue or profit")
-        results.append(ComparisonItem(opportunity=OpportunityResponse.model_validate(opportunity), scenario=body.scenario,
+        results.append(ComparisonItem(opportunity=OpportunityResponse.model_validate(opportunity), scenario=body.scenario, currency=estimate.currency if estimate else None,
             setup_cost=estimate.setup_cost if estimate else None, monthly_operating_cost=estimate.monthly_operating_cost if estimate else None,
             expected_monthly_revenue=estimate.expected_monthly_revenue if estimate else None, expected_monthly_profit=estimate.expected_monthly_profit if estimate else None,
             expected_roi=estimate.expected_roi if estimate else None, break_even_months=estimate.break_even_months if estimate else None,
@@ -165,7 +187,7 @@ def create_opportunity(body: OpportunityCreate, response: Response, idempotency_
 
 @router.get("/{opportunity_id}", response_model=OpportunityResponse)
 def get_opportunity(opportunity_id: UUID, db: Session = Depends(get_db)) -> OpportunityResponse:
-    return OpportunityResponse.model_validate(_opportunity_or_404(db, opportunity_id))
+    return _response(db, _opportunity_or_404(db, opportunity_id))
 
 
 @router.patch("/{opportunity_id}", response_model=OpportunityResponse)
@@ -175,7 +197,8 @@ def update_opportunity(opportunity_id: UUID, body: OpportunityUpdate, response: 
     existing = _idempotent(db, actor, idempotency_key, "PATCH", path, payload, OpportunityResponse)
     if existing: return existing
     opportunity = _opportunity_or_404(db, opportunity_id)
-    if opportunity.status == "DISQUALIFIED" and payload.get("status") not in (None, "ARCHIVED"):
+    latest_risk = db.scalar(select(OpportunityScoreDetail).where(OpportunityScoreDetail.opportunity_id == opportunity_id).order_by(OpportunityScoreDetail.created_at.desc(), OpportunityScoreDetail.id.desc()))
+    if (opportunity.status == "DISQUALIFIED" or (latest_risk and latest_risk.disqualified)) and payload.get("status") not in (None, "ARCHIVED"):
         raise HTTPException(status_code=409, detail="Risk disqualification requires a new risk evaluation")
     for name, value in payload.items(): setattr(opportunity, name, value)
     _flush(db); result = OpportunityResponse.model_validate(opportunity)
