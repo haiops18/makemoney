@@ -67,8 +67,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("opportunity_evaluations")
-    op.drop_table("opportunity_score_details")
-    op.drop_table("opportunity_estimates")
-    op.drop_table("opportunity_evidence")
-    op.drop_table("opportunities")
+    raise RuntimeError("Forward-only migration: opportunity and evaluation history must be preserved")
