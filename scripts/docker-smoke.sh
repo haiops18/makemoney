@@ -24,5 +24,14 @@ until curl --fail --silent --show-error http://localhost:8000/health/ready >/dev
   sleep 2
 done
 
-curl --fail --silent --show-error --output /dev/null http://localhost:3000/
+attempt=0
+until curl --fail --silent --output /dev/null http://localhost:3000/; do
+  attempt=$((attempt + 1))
+  if [ "$attempt" -ge 30 ]; then
+    docker compose ps
+    docker compose logs --tail=120
+    exit 1
+  fi
+  sleep 2
+done
 docker compose ps
