@@ -49,7 +49,9 @@ def test_opportunity_constraints_rollback_and_row_lock():
         pytest.skip('Isolated PostgreSQL required')
     engine = create_engine(url)
     with Session(engine) as session:
-        assert session.scalar(text('SELECT version_num FROM alembic_version')) == '20261102_0004'
+        from alembic.config import Config
+        from alembic.script import ScriptDirectory
+        assert session.scalar(text('SELECT version_num FROM alembic_version')) == ScriptDirectory.from_config(Config('alembic.ini')).get_current_head()
         record = Opportunity(title='Isolated concurrency test', business_model='NEW_EXTENSIBLE_MODEL', created_by='test')
         session.add(record)
         session.commit()

@@ -35,7 +35,7 @@ jobs:
       - run: npm test
       - run: npx playwright install --with-deps chromium && npm run test:e2e
       - run: npm run build
-      - run: npm audit --audit-level=critical
+      - run: npm audit --audit-level=high
   docker-runtime:
     runs-on: ubuntu-latest
     needs: [backend, frontend]
@@ -57,4 +57,23 @@ jobs:
           E2E_BASE_URL: http://127.0.0.1:18005
       - if: always()
         run: docker compose -p step4-ci -f compose.step4-test.yml down
+  workflow-runtime:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: docker compose -p step5-ci -f compose.step5-test.yml up --build -d --wait
+      - run: docker compose -p step5-ci -f compose.step5-test.yml stop worker
+      - run: docker compose -p step5-ci -f compose.step5-test.yml exec -T backend timeout 120 python -m pytest -q -o faulthandler_timeout=30
+      - run: docker compose -p step5-ci -f compose.step5-test.yml start worker
+      - run: npm ci && npx playwright install --with-deps chromium && npm run test:e2e
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: http://127.0.0.1:18006
+          E2E_STEP5: '1'
+          E2E_COMPOSE_PROJECT: step5-ci
+      - if: always()
+        run: docker compose -p step5-ci -f compose.step5-test.yml down
 

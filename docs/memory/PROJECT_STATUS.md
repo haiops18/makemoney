@@ -1,5 +1,43 @@
 # Project status
 
+## Latest — Step 5 IN_PROGRESS
+
+Workflow API, two pure zero-cost internal handlers, action-bound approvals, worker,
+retry/recovery and API-backed UI implemented. Fresh isolated PostgreSQL/Compose:
+47 backend tests and 3 real-runtime Playwright tests passed; frontend lint,
+typecheck, build and 14 tests passed. v28.0.0 remains a release candidate pending
+GitHub CI, required approvals and verified tag/release. Earlier Step 5 checkpoints
+below are historical; external execution remains disabled.
+
+## Step 5 execution-control checkpoint — IN_PROGRESS
+
+Submit/start lifecycle uses the existing policy/approval service and binds the
+approved workflow snapshot. A separate task gate requires exact one-time approval
+and currently allows only zero-cost internal handlers. It is not yet wired to
+execution. Isolated PostgreSQL suite: 41 passed including concurrent start; task
+claiming, worker, recovery, frontend and release gates are not verified.
+
+## Step 5 latest — IN_PROGRESS
+
+Workflow/task draft APIs exist with authentication, idempotency and audit; no
+execution endpoint exists. Fresh isolated PostgreSQL migration to `20261103_0005`
+passed; backend source suite 36 passed (including existing PostgreSQL integration).
+The execution boundary, authorization/budget integration, workflow UI, reliability
+and release gates remain unimplemented/unverified. No tag or release created.
+
+## Step 5 schema checkpoint — IN_PROGRESS
+
+Migration `20261103_0005` successfully upgraded fresh isolated PostgreSQL. Schema
+and a closed registry of two pure validation handlers exist; nothing is exposed or
+executed yet. Workflow lifecycle/API, governance gates, worker, UI and release
+are still outstanding.
+
+## Step 5 — IN_PROGRESS
+
+Baseline main be9d371, release v27.0.0 confirmed. Initial orchestration state and
+dependency validation primitives exist in the working tree; no workflow API,
+migration, dispatcher or frontend is implemented yet. Release not attempted.
+
 ## Step 4 — RELEASED / COMPLETED — v27.0.0
 
 Verified release: https://github.com/haiops18/makemoney/releases/tag/v27.0.0

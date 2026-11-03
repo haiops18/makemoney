@@ -1,5 +1,53 @@
 # Session history
 
+## 2026-11-03 — Step 5 isolated verification
+
+Built fresh `step5-ci` Compose stack without touching production volumes; PostgreSQL
+upgraded through `20261103_0006`, 47 backend tests passed, and Playwright passed
+3 tests against the real API/worker including forced test lease expiry, worker
+restart, fresh approval and retry. Frontend lint/typecheck/build and 14 tests
+passed. Production npm audit reports zero vulnerabilities; 12 moderate development
+findings remain. Candidate remains IN_PROGRESS pending GitHub release gates.
+
+## Step 5 lifecycle and authorization checkpoint
+
+- Added transaction-bound task authorization primitive and an Owner-only
+  approval-action endpoint. Hash includes workflow version, task and current
+  opportunity input; changed input invalidates the approval. No handler runs yet.
+- Added submit to existing Approval Center and start with one-time authorization;
+  the latter queues a workflow and does not authorize any task or external action.
+- PostgreSQL regression: 41 passed, including two concurrent start requests
+  producing one success and one consumed authorization. No task claim or recovery
+  concurrency claim is made. UI and GitHub release remain outstanding.
+
+## Step 5 draft API checkpoint
+
+- Added Owner-only workflow create/list/detail and task create/list, with audit,
+  idempotency, draft-only modification, role validation and dependency parent checks.
+- Added a composite FK preventing an event from naming a task from another workflow;
+  upgraded a second fresh isolated PostgreSQL database after this schema change.
+- Full mounted-source regression including existing PostgreSQL integration: 36 passed.
+  This does not verify Step 5 task claiming, execution, retry or recovery.
+
+## Step 5 schema continuation
+
+- Added forward-only `20261103_0005`: workflow/task records, cross-workflow-safe
+  dependency foreign keys, execution history/lease fields and workflow events.
+- Fresh isolated PostgreSQL upgrade reached head. Added two strict, pure allowlisted
+  validation handlers, not exposed to API or worker. No external execution enabled.
+- An older PostgreSQL regression hard-coded the prior head; corrected it to compare
+  against the Alembic script head rather than bypassing the migration check.
+
+## Step 5 recovery and initial implementation
+
+- Fetched GitHub; main baseline be9d371 clean; release v27.0.0 and main CI PASS verified.
+- Audited existing one-time approval and budget reservation services, migration head
+  source 20261102_0004, frontend unavailable state and CI workflow.
+- Added isolated, fail-closed transition matrices and dependency cycle validation;
+  these primitives do not expose an API or execute tasks. Step 5 is IN_PROGRESS.
+- Mounted-source backend tests: 30 passed, 4 PostgreSQL tests skipped; no Step 5
+  integration/runtime/E2E claim. `git diff --check` passed.
+
 ## 2026-11-02 — Step 4 v27.0.0 RELEASED
 
 - PR #2 merged normally after all checks passed. Tested merge commit:

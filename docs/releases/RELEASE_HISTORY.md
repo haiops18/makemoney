@@ -1,5 +1,10 @@
 # Release history
 
+## v28.0.0 candidate — Step 5 IN_PROGRESS
+
+No v28.0.0 tag or GitHub Release is claimed. Implementation and final isolated
+runtime/CI verification are in progress; release requires all mandatory gates.
+
 ## v27.0.0 — Step 4 RELEASED — 2026-11-02
 
 - URL: https://github.com/haiops18/makemoney/releases/tag/v27.0.0

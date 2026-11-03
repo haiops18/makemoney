@@ -1,5 +1,29 @@
 # Known issues
 
+## Current Step 5 checkpoint (supersedes historical checkpoints below)
+
+- Workflow and task approvals, PostgreSQL worker, cancellation, bounded retries,
+  lease recovery and API-backed UI are implemented; final release verification is
+  still pending. Recovery and retry require fresh action-bound Owner approval.
+- Only two pure validation handlers are registered; all paid or external actions
+  are denied. Cancellation cannot forcibly stop a running Python handler: its
+  result is discarded and leases fence late completion.
+- Twelve moderate npm development-tool findings remain; production npm audit has
+  no findings. Reassess on compatible upgrades; do not force breaking upgrades.
+- GitHub CI and v28.0.0 release remain unverified; no completion is claimed.
+
+Step 5 schema and two pure validation handlers now exist, but API execution and
+policy/approval/budget integration remain unimplemented and fail closed. No worker,
+retry/recovery, UI, Step 5 E2E or release is present. The initial isolated migration
+upgrade succeeded; schema-specific constraint/concurrency tests are still needed.
+
+## Step 5 implementation gaps
+
+- Workflow persistence, API, execution boundary, policy/approval/budget integration,
+  retry/recovery, frontend and Step 5 release gates remain unimplemented. Initial
+  local source run: 30 passed, 4 PostgreSQL tests skipped; PostgreSQL Step 5
+  concurrency and runtime have not been tested. No release tag was created.
+
 ## Released v27.0.0 — current issues
 
 - GitHub auth/release, PostgreSQL migration/concurrency, advanced UI and runtime
