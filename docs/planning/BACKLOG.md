@@ -1,5 +1,8 @@
 # Backlog
 
+Step 5 release gates below are closed in v28.0.0. Next: define Step 6 scope and
+continue tracking moderate development-tool findings and readiness improvements.
+
 ## Step 5 current release gates
 
 - Verify the final isolated PostgreSQL, worker recovery, frontend E2E and Docker

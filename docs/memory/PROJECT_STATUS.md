@@ -1,5 +1,11 @@
 # Project status
 
+## Step 5 COMPLETED — v28.0.0
+
+Verified GitHub release, annotated tag and main/tag/release CI PASS. Source commit
+`bcd7a5cc29bc8e9e4bfc52cf38052c375dde2f22`. See release history for evidence.
+Older IN_PROGRESS checkpoints below are historical. Next: Step 6.
+
 ## Latest — Step 5 IN_PROGRESS
 
 Workflow API, two pure zero-cost internal handlers, action-bound approvals, worker,

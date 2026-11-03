@@ -1,6 +1,6 @@
 # AUTO MONEY AI
 
-## Workflow orchestration — Step 5 IN_PROGRESS
+## Workflow orchestration — Step 5 RELEASED (v28.0.0)
 
 The Owner can build workflows from recorded opportunities, define dependencies,
 request approvals and run two allowlisted, zero-cost internal validation handlers.
@@ -20,7 +20,7 @@ cd frontend
 E2E_BASE_URL=http://127.0.0.1:18006 E2E_STEP5=1 E2E_COMPOSE_PROJECT=step5-ci npm run test:e2e
 ```
 
-Step 5 has not been released; see `docs/memory/CURRENT_TASK.md` for its gates.
+Release: https://github.com/haiops18/makemoney/releases/tag/v28.0.0
 
 ## Opportunity engine — Step 4 RELEASED (v27.0.0)
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — Step 5 Workflow Orchestration
+## v28.0.0 — Step 5 Workflow Orchestration — RELEASED
 
 - Added Owner-only workflows, ordered dependencies, immutable attempt/event history,
   separate action-bound workflow and task approvals, and transactional audit.
@@ -8,7 +8,7 @@
   crash recovery and cooperative cancellation for two pure validation handlers.
 - Added API-backed workflow command center and isolated PostgreSQL/Compose E2E jobs.
 - No external execution, paid calls, AI inference, publication or payments.
-- Candidate v28.0.0 remains IN_PROGRESS until all gates and release are verified.
+- Main, tag and release CI passed. Release: https://github.com/haiops18/makemoney/releases/tag/v28.0.0
 
 ## v27.0.0 — 2026-11-02 — RELEASED
 

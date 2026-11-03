@@ -1,6 +1,6 @@
 # Database schema
 
-## Step 5 current schema — IN_PROGRESS
+## Step 5 schema — RELEASED in v28.0.0
 
 `20261103_0005` adds workflows, tasks, dependency edges, execution attempts and
 events with UUIDs, composite workflow-scoped foreign keys and unique attempts.
