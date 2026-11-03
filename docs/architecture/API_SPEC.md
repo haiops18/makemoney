@@ -1,6 +1,6 @@
 # API specification — Sprint 2 Module 1
 
-## Step 5 current workflow contract — IN_PROGRESS
+## Step 5 workflow contract — RELEASED in v28.0.0
 
 All paths below are under `/api/v1/workflows`, require Owner authentication and
 mutations require `Idempotency-Key`. Lists support pagination. `GET /` and `POST /`

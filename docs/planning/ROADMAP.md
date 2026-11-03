@@ -1,5 +1,8 @@
 # Roadmap
 
+Step 5 COMPLETED in v28.0.0; next is Step 6 — AI Brain & Research Agents.
+Older Step 5 candidate checkpoints below are historical.
+
 Current: Step 5 / S2-M4 IN_PROGRESS; Step 4 is released as v27.0.0.
 Workflow lifecycle, approval-bound zero-cost internal execution and API-backed UI
 are under verification. Target v28.0.0 is not released. Next requested roadmap

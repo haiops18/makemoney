@@ -1,5 +1,10 @@
 # Session history
 
+## 2026-11-03 — Step 5 released
+
+PR #4 merged; v28.0.0 published at `bcd7a5cc29bc8e9e4bfc52cf38052c375dde2f22`.
+Main, tag and release CI passed. Release history records tag SHA and run URLs.
+
 ## 2026-11-03 — Step 5 isolated verification
 
 Built fresh `step5-ci` Compose stack without touching production volumes; PostgreSQL

@@ -1,5 +1,8 @@
 # Known issues
 
+Step 5 release gates below are resolved by verified v28.0.0; limitations concerning
+zero-cost handlers, cooperative cancellation and moderate development findings remain.
+
 ## Current Step 5 checkpoint (supersedes historical checkpoints below)
 
 - Workflow and task approvals, PostgreSQL worker, cancellation, bounded retries,

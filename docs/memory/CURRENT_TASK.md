@@ -1,5 +1,13 @@
 # Current task
 
+## Step 5 COMPLETED — v28.0.0
+
+Verified release https://github.com/haiops18/makemoney/releases/tag/v28.0.0
+at `bcd7a5cc29bc8e9e4bfc52cf38052c375dde2f22`; main, tag and release CI passed.
+See `docs/releases/RELEASE_HISTORY.md` for tag SHA and test evidence. Next roadmap
+step is Step 6 — AI Brain & Research Agents, subject to its authorized scope.
+Older Step 5 IN_PROGRESS checkpoints below are historical.
+
 ## Step 5 final local verification checkpoint — IN_PROGRESS
 
 Baseline main `be9d371d659eb39e03a9c2914bee13bcf15cde51`, release v27.0.0;

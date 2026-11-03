@@ -1,5 +1,18 @@
 # Release history
 
+## v28.0.0 — Step 5 COMPLETED — 2026-11-03
+
+- Release: https://github.com/haiops18/makemoney/releases/tag/v28.0.0
+- Source: `bcd7a5cc29bc8e9e4bfc52cf38052c375dde2f22` (PR #4).
+- Annotated tag: `be78055794cf71c2f78c713cd013c5a22d804978`; peeled commit is source above.
+- Published 2026-11-03T14:25:18Z, neither draft nor prerelease.
+- Main CI: https://github.com/haiops18/makemoney/actions/runs/41651941483 — PASS.
+- Tag CI: https://github.com/haiops18/makemoney/actions/runs/41652606281 — PASS.
+- Release workflow: https://github.com/haiops18/makemoney/actions/runs/41652606283 — PASS.
+- Isolated verification: 47 backend tests, 14 frontend tests, 3 Playwright tests;
+  PostgreSQL concurrency, worker recovery and Docker runtime passed.
+- Twelve moderate development dependency findings remain; production audit clean.
+
 ## v28.0.0 candidate — Step 5 IN_PROGRESS
 
 No v28.0.0 tag or GitHub Release is claimed. Implementation and final isolated
