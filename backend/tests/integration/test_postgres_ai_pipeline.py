@@ -77,7 +77,11 @@ def pg(monkeypatch):
     app.dependency_overrides[get_db] = database
     try:
         with TestClient(app) as client:
+            initially_enabled = client.get('/api/v1/ai/control', headers=HEADERS).json()['enabled']
             yield client, factory
+            # Restore shared state so later suites (e.g. E2E on the same database) see the default.
+            if not initially_enabled and client.get('/api/v1/ai/control', headers=HEADERS).json()['enabled']:
+                assert client.post('/api/v1/ai/control/disable', headers=key()).status_code == 200
     finally:
         app.dependency_overrides.clear()
         engine.dispose()

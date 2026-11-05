@@ -49,12 +49,15 @@ def _prior_outputs(db: Session, task: WorkflowTask) -> list[PriorStageOutput]:
                               .where(TaskDependency.task_id == task.id).order_by(WorkflowTask.created_at, WorkflowTask.id)))
     outputs = []
     for parent in parents:
-        if parent.task_type not in AI_TASK_ROLES or parent.status != 'SUCCEEDED':
+        if parent.task_type not in AI_TASK_ROLES:
             continue
+        if parent.status != 'SUCCEEDED':
+            # Never send a stage with missing prior context; that would bill a degraded request.
+            raise AIExecutionDenied('A prior AI stage has not succeeded')
         invocation = db.scalar(select(AIInvocation).join(TaskExecution, TaskExecution.id == AIInvocation.execution_id)
                                .where(TaskExecution.task_id == parent.id, TaskExecution.status == 'SUCCEEDED', AIInvocation.status == 'SUCCEEDED')
                                .order_by(TaskExecution.attempt_number.desc()).limit(1))
-        if invocation is None or not isinstance(invocation.output_json, dict):
+        if invocation is None or not isinstance(invocation.output_json, dict) or not isinstance(invocation.output_json.get('summary'), str):
             raise AIExecutionDenied('A prior AI stage output is unavailable')
         outputs.append(PriorStageOutput(stage=parent.task_type, summary=invocation.output_json['summary'], findings=invocation.output_json.get('findings', [])))
     if len(outputs) > MAX_PRIOR_OUTPUTS:

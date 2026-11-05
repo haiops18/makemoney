@@ -80,3 +80,10 @@ def test_model_listing_parsers():
     assert ADAPTERS['OPENAI'].model_ids({'data': [{'id': 'gpt-x'}]}) == {'gpt-x'}
     assert ADAPTERS['GEMINI'].model_ids({'models': [{'name': 'models/gemini-x'}]}) == {'gemini-x'}
     assert ADAPTERS['ANTHROPIC'].model_ids({'error': 'x'}) is None
+
+
+def test_model_listing_is_unknown_when_more_pages_exist():
+    assert ADAPTERS['ANTHROPIC'].model_listed({'data': [{'id': 'a'}], 'has_more': True}, 'b') is None
+    assert ADAPTERS['ANTHROPIC'].model_listed({'data': [{'id': 'a'}], 'has_more': False}, 'b') is False
+    assert ADAPTERS['GEMINI'].model_listed({'models': [{'name': 'models/a'}], 'nextPageToken': 't'}, 'a') is True
+    assert ADAPTERS['GEMINI'].model_listed({'models': [], 'nextPageToken': 't'}, 'a') is None

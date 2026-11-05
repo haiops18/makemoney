@@ -347,12 +347,12 @@ def _results(db: Session, run: AIResearchRun) -> ResearchResults:
             if task.task_type not in AI_TASK_ROLES:
                 continue
             row = db.execute(select(AIInvocation, BudgetReservation).join(TaskExecution, TaskExecution.id == AIInvocation.execution_id)
-                             .join(BudgetReservation, BudgetReservation.id == AIInvocation.reservation_id)
+                             .outerjoin(BudgetReservation, BudgetReservation.id == AIInvocation.reservation_id)
                              .where(TaskExecution.task_id == task.id).order_by(TaskExecution.attempt_number.desc()).limit(1)).first()
             item = StageResult(task_id=task.id, name=task.name, task_type=task.task_type, assigned_role=task.assigned_role, task_status=task.status)
             if row is not None:
                 invocation, reservation = row
-                confirmed = reservation.actual_amount if reservation.status in {'SETTLED', 'RELEASED'} else None
+                confirmed = reservation.actual_amount if reservation is not None and reservation.status in {'SETTLED', 'RELEASED'} else None
                 item = item.model_copy(update={'invocation_id': invocation.id, 'invocation_status': invocation.status, 'model_id': invocation.model_id,
                                                'error_code': invocation.error_code, 'estimated_cost': str(invocation.estimated_cost),
                                                'calculated_cost': None if invocation.calculated_cost is None else str(invocation.calculated_cost),

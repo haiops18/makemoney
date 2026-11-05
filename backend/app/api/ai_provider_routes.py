@@ -207,9 +207,8 @@ def test_connection(provider_id: UUID, response: Response, key: str = Header(ali
         elif not 200 <= code < 300:
             outcome = 'PROVIDER_ERROR'
         else:
-            names = adapter.model_ids(raw)
-            outcome = 'OK' if names is not None else 'INVALID_RESPONSE'
-            model_listed = None if names is None else model in names
+            outcome = 'OK' if adapter.model_ids(raw) is not None else 'INVALID_RESPONSE'
+            model_listed = adapter.model_listed(raw, model)
     except Exception:
         outcome = 'UNREACHABLE'
     finally:

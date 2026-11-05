@@ -9,7 +9,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import Numeric, and_, case, cast, func, select
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import require_owner
@@ -72,63 +72,64 @@ class UsageSummary(BaseModel):
     total_items: int
 
 
-def _money(value: Decimal) -> str:
-    return str(value.quantize(Decimal('0.000001')))
+def _money(value) -> str:
+    return str(Decimal(value or 0).quantize(Decimal('0.000001')))
+
+
+MONEY = Numeric(18, 6)
+CLOSED = BudgetReservation.status.in_(['SETTLED', 'RELEASED'])
+CONFIRMED = case((CLOSED, func.coalesce(BudgetReservation.actual_amount, 0)), else_=0)
+HELD = case((CLOSED, 0), else_=BudgetReservation.reserved_amount)
+# Any dispatch that reached a terminal state with an open hold needs the Owner.
+NEEDS = case((and_(~CLOSED, AIInvocation.status.in_(['SUCCEEDED', 'FAILED', 'USAGE_UNKNOWN'])), 1), else_=0)
+
+
+def _scoped(statement, research_run_id: UUID | None):
+    statement = statement.select_from(AIInvocation).join(BudgetReservation, BudgetReservation.id == AIInvocation.reservation_id)
+    return statement.where(AIInvocation.research_run_id == research_run_id) if research_run_id is not None else statement
+
+
+def _totals():
+    return (func.count(AIInvocation.id), func.coalesce(func.sum(func.coalesce(AIInvocation.input_tokens, 0)), 0),
+            func.coalesce(func.sum(func.coalesce(AIInvocation.output_tokens, 0)), 0),
+            cast(func.coalesce(func.sum(func.coalesce(AIInvocation.calculated_cost, 0)), 0), MONEY), cast(func.coalesce(func.sum(CONFIRMED), 0), MONEY))
 
 
 @router.get('', response_model=UsageSummary)
 def usage_summary(research_run_id: UUID | None = None, limit: int = Query(default=25, ge=1, le=100), offset: int = Query(default=0, ge=0), db: Session = Depends(get_db)):
-    statement = (select(AIInvocation, BudgetReservation, AIProvider, WorkflowTask)
-                 .join(BudgetReservation, BudgetReservation.id == AIInvocation.reservation_id)
-                 .join(AIProvider, AIProvider.id == AIInvocation.provider_id)
-                 .join(TaskExecution, TaskExecution.id == AIInvocation.execution_id)
-                 .join(WorkflowTask, WorkflowTask.id == TaskExecution.task_id)
-                 .order_by(AIInvocation.created_at.desc(), AIInvocation.id))
-    if research_run_id is not None:
-        statement = statement.where(AIInvocation.research_run_id == research_run_id)
-    rows = db.execute(statement.limit(10000)).all()
-    zero = Decimal('0')
+    """All totals are computed in SQL over every matching invocation; only items are paginated."""
+    count, input_tokens, output_tokens, calculated, confirmed = db.execute(_scoped(select(*_totals()), research_run_id)).one()
+    estimated, held, needs = db.execute(_scoped(select(cast(func.coalesce(func.sum(AIInvocation.estimated_cost), 0), MONEY),
+                                                       cast(func.coalesce(func.sum(HELD), 0), MONEY), func.coalesce(func.sum(NEEDS), 0)), research_run_id)).one()
     by_status = {status: 0 for status in STATUSES}
-    totals = {'estimated': zero, 'calculated': zero, 'confirmed': zero, 'held': zero, 'input': 0, 'output': 0, 'open': 0}
-    groups: dict[str, dict[str, dict]] = {'role': {}, 'model': {}}
+    for status, total in db.execute(_scoped(select(AIInvocation.status, func.count(AIInvocation.id)), research_run_id).group_by(AIInvocation.status)):
+        by_status[status] = total
+
+    def breakdown(*columns) -> list[Breakdown]:
+        rows = db.execute(_scoped(select(*columns, *_totals()), research_run_id).join(AIProvider, AIProvider.id == AIInvocation.provider_id)
+                          .group_by(*columns).order_by(*columns))
+        return [Breakdown(key=':'.join(str(part) for part in row[:len(columns)]), invocations=row[-5], input_tokens=row[-4], output_tokens=row[-3],
+                          calculated_cost=_money(row[-2]), confirmed_cost=_money(row[-1])) for row in rows]
+
+    page = db.execute(_scoped(select(AIInvocation, BudgetReservation, AIProvider, WorkflowTask), research_run_id)
+                      .join(AIProvider, AIProvider.id == AIInvocation.provider_id)
+                      .join(TaskExecution, TaskExecution.id == AIInvocation.execution_id)
+                      .join(WorkflowTask, WorkflowTask.id == TaskExecution.task_id)
+                      .order_by(AIInvocation.created_at.desc(), AIInvocation.id).offset(offset).limit(limit)).all()
     items = []
-    for invocation, reservation, provider, task in rows:
+    for invocation, reservation, provider, task in page:
         closed = reservation.status in {'SETTLED', 'RELEASED'}
-        confirmed = Decimal(reservation.actual_amount) if closed and reservation.actual_amount is not None else None
-        held = zero if closed else Decimal(reservation.reserved_amount)
-        calculated = Decimal(invocation.calculated_cost) if invocation.calculated_cost is not None else None
-        # Any dispatch that reached a terminal state with an open hold needs the Owner.
-        needs = not closed and invocation.status in {'SUCCEEDED', 'FAILED', 'USAGE_UNKNOWN'}
-        by_status[invocation.status] = by_status.get(invocation.status, 0) + 1
-        totals['estimated'] += Decimal(invocation.estimated_cost)
-        totals['calculated'] += calculated or zero
-        totals['confirmed'] += confirmed or zero
-        totals['held'] += held
-        totals['input'] += invocation.input_tokens or 0
-        totals['output'] += invocation.output_tokens or 0
-        totals['open'] += int(needs)
-        for group, key in (('role', invocation.agent_role), ('model', f'{provider.kind}:{invocation.model_id}')):
-            bucket = groups[group].setdefault(key, {'invocations': 0, 'input': 0, 'output': 0, 'calculated': zero, 'confirmed': zero})
-            bucket['invocations'] += 1
-            bucket['input'] += invocation.input_tokens or 0
-            bucket['output'] += invocation.output_tokens or 0
-            bucket['calculated'] += calculated or zero
-            bucket['confirmed'] += confirmed or zero
+        actual = reservation.actual_amount if closed and reservation.actual_amount is not None else None
         items.append(UsageItem(id=invocation.id, research_run_id=invocation.research_run_id, task_id=task.id, task_type=task.task_type,
                                agent_role=invocation.agent_role, provider_id=provider.id, provider_name=provider.name, provider_kind=provider.kind,
                                model_id=invocation.model_id, status=invocation.status, error_code=invocation.error_code,
                                input_tokens=invocation.input_tokens, output_tokens=invocation.output_tokens,
-                               estimated_cost=_money(Decimal(invocation.estimated_cost)), calculated_cost=None if calculated is None else _money(calculated),
-                               confirmed_cost=None if confirmed is None else _money(confirmed), reservation_id=reservation.id,
-                               reservation_status=reservation.status, held_amount=_money(held), needs_reconciliation=needs,
+                               estimated_cost=_money(invocation.estimated_cost), calculated_cost=None if invocation.calculated_cost is None else _money(invocation.calculated_cost),
+                               confirmed_cost=None if actual is None else _money(actual), reservation_id=reservation.id,
+                               reservation_status=reservation.status, held_amount=_money(0 if closed else reservation.reserved_amount),
+                               needs_reconciliation=not closed and invocation.status in {'SUCCEEDED', 'FAILED', 'USAGE_UNKNOWN'},
                                created_at=invocation.created_at, completed_at=invocation.completed_at))
-
-    def breakdown(group: str) -> list[Breakdown]:
-        return [Breakdown(key=key, invocations=value['invocations'], input_tokens=value['input'], output_tokens=value['output'],
-                          calculated_cost=_money(value['calculated']), confirmed_cost=_money(value['confirmed']))
-                for key, value in sorted(groups[group].items())]
-
-    return UsageSummary(invocations=len(rows), by_status=by_status, input_tokens=totals['input'], output_tokens=totals['output'],
-                        estimated_cost=_money(totals['estimated']), calculated_cost=_money(totals['calculated']),
-                        confirmed_cost=_money(totals['confirmed']), held_amount=_money(totals['held']), needs_reconciliation=totals['open'],
-                        by_role=breakdown('role'), by_model=breakdown('model'), items=items[offset:offset + limit], total_items=len(items))
+    return UsageSummary(invocations=count, by_status=by_status, input_tokens=input_tokens, output_tokens=output_tokens,
+                        estimated_cost=_money(estimated), calculated_cost=_money(calculated), confirmed_cost=_money(confirmed),
+                        held_amount=_money(held), needs_reconciliation=needs, by_role=breakdown(AIInvocation.agent_role),
+                        by_model=breakdown(AIProvider.kind, AIInvocation.model_id), items=items, total_items=count)

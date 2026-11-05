@@ -180,6 +180,16 @@ class ProviderAdapter:
     def model_ids(self, raw: object) -> set[str] | None:
         return _model_ids(self.kind, raw)
 
+    def model_listed(self, raw: object, model: str) -> bool | None:
+        """True/False only when the answer is certain; None if more pages exist."""
+        names = _model_ids(self.kind, raw)
+        if names is None:
+            return None
+        if model in names:
+            return True
+        more = raw.get('nextPageToken') if self.kind == 'GEMINI' else raw.get('has_more')
+        return None if more else False
+
 
 ADAPTERS = {
     'OPENAI': ProviderAdapter('OPENAI', 'api.openai.com', ('https://api.openai.com/v1',), openai_build_request, openai_parse_response),
