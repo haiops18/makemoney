@@ -1,14 +1,23 @@
 # Changelog
 
-## Unreleased — Step 6 AI Brain & Research
+## v29.0.0 — Step 6 AI Brain & Research Agents
 
-- Added Owner-controlled provider/model configuration, encrypted credentials,
-  versioned USD prices and prompt catalog, plus research drafts and unverified
-  Owner-entered sources. No model calls or source fetching are available yet.
-- Added default-off global consent requiring exact one-time Owner approval;
-  consent does not authorize individual tasks or activate AI execution.
-- Preserved actual settled overages and hardened monthly budget-account creation
-  against transaction rollback on a concurrent insert. Release is IN_PROGRESS.
+- Seven-stage AI research pipeline (plan, market, competitors, opportunity,
+  financial, risk, report) on the existing workflow, approval, budget-reservation
+  and worker-lease controls; each stage needs its own exact one-time approval.
+- Verified adapters for OpenAI Responses, Anthropic Messages and Gemini
+  generateContent on official endpoints only; custom URLs/OPENAI_COMPATIBLE denied.
+  One pinned-HTTPS dispatch per approval, no tools, retries or fallback.
+- Owner source verification (VERIFIED/REJECTED); only verified sources support a
+  FACT, rejected sources are never sent. Prior stage outputs passed as untrusted input.
+- Durable invocation outcomes and usage; unknown outcomes keep their budget hold;
+  AI usage dashboard with Owner settle/release reconciliation.
+- Zero-cost provider connection test (model listing) gated by global consent.
+- Promotion of a completed research report to an unscored DRAFT opportunity with
+  Owner sources as evidence. Migrations 0007–0018 (forward-only).
+- Earlier Step 6 foundation: encrypted provider keys, agent profiles, versioned
+  Decimal prices, immutable prompts, research drafts, default-off global consent,
+  verified overage settlement.
 
 ## v28.0.0 — Step 5 Workflow Orchestration — RELEASED
 

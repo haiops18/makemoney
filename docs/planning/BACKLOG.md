@@ -1,6 +1,13 @@
 # Backlog
 
-## Step 6 remaining
+## After Step 6
+
+- Owner-approved allowlist design for OPENAI_COMPATIBLE hosts.
+- AI_CREDENTIALS_KEY rotation tooling.
+- Provider invoice import to speed up reconciliation.
+- 7 moderate development-only npm audit findings.
+
+## Step 6 remaining (closed by v29.0.0 implementation)
 
 - Implement and test action-specific AI execution with verified policy, Owner
   approval, budget reservation and safe accounting for unknown provider usage.

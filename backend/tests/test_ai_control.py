@@ -42,7 +42,7 @@ def test_ai_control_requires_exact_one_time_owner_approval(client, auth_headers)
     body = {'policy_id': policy_id, 'approval_id': approval_id}
     headers = auth_headers | {'Idempotency-Key': 'enable-first'}
     enabled = client.post('/api/v1/ai/control/enable', json=body, headers=headers)
-    assert enabled.status_code == 200 and enabled.json()['enabled'] is True and enabled.json()['execution_available'] is False
+    assert enabled.status_code == 200 and enabled.json()['enabled'] is True and enabled.json()['execution_available'] is True
     assert client.post('/api/v1/ai/control/enable', json=body, headers=headers).json() == enabled.json()
     disabled = client.post('/api/v1/ai/control/disable', headers=auth_headers | {'Idempotency-Key': 'disable-first'})
     assert disabled.status_code == 200 and disabled.json()['enabled'] is False

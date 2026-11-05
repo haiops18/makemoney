@@ -23,6 +23,18 @@ or business transactions are written by these tables.
 Forward-only `20261104_0008` adds one AI configuration profile per existing agent,
 with restricted agent/provider FKs, numeric per-run USD limit and resource checks.
 
+## Step 6 migration 20261105_0018 — research stages
+
+- `ai_research_sources`: `verification_status` now `UNVERIFIED | VERIFIED | REJECTED`;
+  `verified_by`, `verified_at`, `verification_note`; check constraint ties
+  `verified_at` to a decided status.
+- `ai_research_runs.opportunity_id`: unique nullable FK to the promoted opportunity.
+- `ai_providers.last_checked_at`, `last_check_status`, `last_check_model_listed`.
+- Seeds new immutable prompt versions with `provider_execution=true`: `research`
+  2.0.0 and `market_research`, `competitor_analysis`, `opportunity_generation`,
+  `financial_analysis`, `risk_review`, `research_report` 1.0.0. Prompt 1.0.0 is
+  unchanged and still denies execution. Forward-only.
+
 ## Step 6 provider configuration — IN_PROGRESS
 
 Forward-only migration `20261103_0007` adds `ai_providers` with UUID, kind check,

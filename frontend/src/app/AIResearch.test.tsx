@@ -25,7 +25,7 @@ it('creates an idempotent research draft and shows unverified source entry', asy
   fireEvent.change(screen.getByLabelText('Mục tiêu nghiên cứu'), { target: { value: 'Test research' } });
   fireEvent.click(screen.getByRole('button', { name: 'Tạo bản nháp' }));
   await waitFor(() => expect(screen.getByText('Đã lưu bản nháp.')).toBeInTheDocument());
-  expect(screen.getByText('Các nguồn chưa xác minh và không được tự động truy cập.')).toBeInTheDocument();
+  expect(screen.getByText('Nguồn không được tự động truy cập. Chỉ nguồn Owner đã xác minh mới được dùng làm căn cứ cho FACT; nguồn bị từ chối không gửi cho AI.')).toBeInTheDocument();
   const call = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'POST');
   expect((call?.[1]?.headers as Record<string, string>)['Idempotency-Key']).toBeTruthy();
 });

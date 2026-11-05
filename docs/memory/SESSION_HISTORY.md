@@ -1,5 +1,12 @@
 # Session history
 
+## 2026-11-05 — Step 6 completion session
+
+Owner resumed Step 6 and asked for deployment. Added migration 0018, provider
+adapters, stage prompts, verification/pipeline/results/promotion/usage/connection
+APIs and UI, PostgreSQL end-to-end/concurrency/crash tests and documentation.
+Release and deployment evidence: docs/releases/STEP6_VERIFICATION.md.
+
 ## 2026-11-05 — Owner requested pushing the paused checkpoint
 
 Inspected all 18 changed/new code and memory files, fetched origin and verified

@@ -1,5 +1,23 @@
 # Known issues
 
+## Step 6 v29.0.0 — current known limitations
+
+- No test or CI run contacts a real provider; adapters are verified against
+  documented response shapes with fake transports. The first real call on a new
+  model should be watched and reconciled by the Owner.
+- OPENAI_COMPATIBLE and custom base URLs can be stored but are denied for
+  execution/connection tests (no SSRF-safe allowlist for arbitrary hosts).
+- Token-based cost is an estimate; provider billing caps are not enforced by the
+  provider. Unknown outcomes keep their hold until Owner settle/release.
+- Source verification is an Owner attestation; the server never fetches or checks
+  a URL. Model output can still be wrong even when it cites verified sources.
+- Changing a source's verification after a task approval changes the action hash;
+  the approval then no longer matches and must be requested again (fail closed).
+- Anthropic structured output relies on prompt instructions plus strict server
+  validation (a fenced JSON block is tolerated); invalid output fails the stage.
+- AI_CREDENTIALS_KEY rotation is still manual; losing it makes stored keys unreadable.
+- Older entries below describe earlier checkpoints and are superseded where they differ.
+
 ## Checkpoint push clarification — 2026-11-05
 
 The latest reconciliation/idempotency edits were included in a fresh 100-test

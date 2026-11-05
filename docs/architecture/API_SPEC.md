@@ -1,5 +1,49 @@
 # API specification — Sprint 2 Module 1
 
+## Step 6 AI research execution (v29.0.0)
+
+All endpoints are Owner-only. Mutations require `Idempotency-Key` and are audited.
+
+- `POST /api/v1/ai/research/{id}/sources/{source_id}/verification` —
+  `{status: VERIFIED|REJECTED, note}`. Final Owner decision about an excerpt; the
+  server never fetches the URL. Only VERIFIED sources can support a `FACT`;
+  REJECTED sources are never sent to a provider. Denied (409) while an invocation
+  for the research is PREPARED/DISPATCHED.
+- `POST /api/v1/ai/research/{id}/pipeline` — `{confirm_no_execution: true}`. Adds
+  seven AI stage tasks to the DRAFT research workflow: plan → market and competitor
+  → opportunity → financial and risk → report. Each task pins the newest
+  execution-enabled prompt version and effective model price for its agent's
+  profile, with `max_retries=0`. Nothing runs; 409 when a profile, price or prompt
+  is unavailable.
+- `GET /api/v1/ai/research/{id}/results` — per-stage task status, invocation status,
+  estimated / token-based / confirmed cost and validated output. `ai_generated=true`:
+  output is untrusted analysis, not market fact.
+- `POST /api/v1/ai/research/{id}/promote` — `{title, business_model, monetization_method?}`.
+  Once per research, after the workflow is COMPLETED with a report. Creates a DRAFT
+  opportunity (`data_origin=AI_RESEARCH`, unscored); only non-rejected Owner sources
+  become evidence with their own verification status.
+- `POST /api/v1/ai/providers/{id}/connection-test` — lists models on the official
+  endpoint once (no prompt, no inference). Requires global consent and a verified
+  adapter. Result: `OK | AUTH_FAILED | RATE_LIMITED | PROVIDER_ERROR | UNREACHABLE |
+  INVALID_RESPONSE` plus whether the default model is listed; stored on the provider.
+- `GET /api/v1/ai/usage?research_run_id=&limit=&offset=` — invocation counts by
+  status, tokens, estimated / token-based / confirmed cost, budget still held,
+  number needing reconciliation and breakdowns by agent and model.
+  Reconciliation uses the existing `POST /api/v1/budgets/reservations/{id}/settle`
+  and `/release`.
+- `GET /api/v1/ai/control` now reports `execution_available = enabled`: consent
+  makes per-task execution requestable; it never approves a task by itself.
+
+AI tasks run through the existing workflow task API: `GET .../tasks/{id}/approval-action`
+with the `ai-inference-controlled` policy returns the server-built action (exact
+request, endpoint, model, prompt, price, cost ceiling, prior stage outputs); the
+Approval Center approves it; `POST .../tasks/{id}/queue` consumes the approval and
+reserves the budget; the worker dispatches once. Provider adapters exist for
+OPENAI, ANTHROPIC and GEMINI on their official endpoints only. Custom base URLs and
+OPENAI_COMPATIBLE are denied for execution and connection tests.
+
+Older sections below describe earlier checkpoints and are superseded where they differ.
+
 `GET/POST /api/v1/ai/research/{id}/workflow` reads/creates a draft workflow with a
 zero-cost `VALIDATE_RESEARCH_DRAFT` task. The existing Workflow lifecycle and task
 approval API enforce execution. This validates fields, not market truth or AI output.

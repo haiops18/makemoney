@@ -51,7 +51,7 @@ def test_concurrent_ai_consent_consumes_one_approval():
             assert db.scalar(select(func.count()).select_from(AuditEvent).where(AuditEvent.entity_id == control.id, AuditEvent.action == 'ai_control.enabled')) >= 1
         with TestClient(app) as client:
             state = client.get('/api/v1/ai/control', headers=headers).json()
-            assert state['execution_available'] is False
+            assert state['execution_available'] is True
             assert client.post('/api/v1/ai/control/disable', headers=key()).status_code == 200
     finally:
         app.dependency_overrides.clear()

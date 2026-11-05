@@ -4,7 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -24,7 +24,14 @@ class ControlResponse(BaseModel):
     enabled: bool
     version: int
     updated_at: datetime
+    # Consent makes per-task execution requestable; each task still needs its own
+    # approval, budget reservation, verified adapter and execution-enabled prompt.
     execution_available: bool = False
+
+    @model_validator(mode='after')
+    def derive_availability(self):
+        self.execution_available = self.enabled
+        return self
 
 
 class EnableAction(BaseModel):

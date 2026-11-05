@@ -11,10 +11,29 @@ class EvidenceInput(BaseModel):
     text: str = Field(min_length=1, max_length=12000)
 
 
+class PriorFinding(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    classification: str = Field(min_length=1, max_length=20)
+    statement: str = Field(min_length=1, max_length=4000)
+    source_ids: list[UUID] = Field(default_factory=list, max_length=20)
+    assumptions: list[str] = Field(default_factory=list, max_length=20)
+
+
+class PriorStageOutput(BaseModel):
+    """Validated output of an earlier AI stage. It is model-generated and untrusted."""
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    stage: str = Field(min_length=1, max_length=100)
+    summary: str = Field(min_length=1, max_length=8000)
+    findings: list[PriorFinding] = Field(default_factory=list, max_length=100)
+
+
 class ResearchRequest(BaseModel):
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     objective: str = Field(min_length=1, max_length=4000)
+    target_market: str | None = Field(default=None, max_length=200)
+    target_customers: str | None = Field(default=None, max_length=500)
     evidence: list[EvidenceInput] = Field(default_factory=list, max_length=20)
+    prior_outputs: list[PriorStageOutput] = Field(default_factory=list, max_length=10)
 
 
 @dataclass(frozen=True)

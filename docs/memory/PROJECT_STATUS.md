@@ -1,5 +1,12 @@
 # Project status
 
+## Step 6 — implementation complete, release v29.0.0 verification in progress — 2026-11-05
+
+AI research pipeline, verified adapters, source verification, usage/reconciliation
+UI and promotion to opportunities are implemented and tested locally (backend 110
+on PostgreSQL, frontend 29). Release status is recorded in docs/releases/.
+Older paragraphs below are historical.
+
 ## Latest checkpoint push — 2026-11-05 — Step 6 IN_PROGRESS, paused
 
 Owner authorized pushing all current code and memory to feat/step6-ai-research /

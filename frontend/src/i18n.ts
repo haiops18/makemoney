@@ -3,7 +3,7 @@ import { initReactI18next } from "react-i18next";
 
 const resources = {
   vi: { translation: {
-    nav: { dashboard: "Tổng quan", workforce: "AI Workforce", opportunities: "Cơ hội", research: "Nghiên cứu AI", projects: "Dự án", workflows: "Workflow", approvals: "Phê duyệt", finance: "Tài chính & Ngân sách", audit: "Nhật ký audit", settings: "Cài đặt" },
+    nav: { dashboard: "Tổng quan", workforce: "AI Workforce", opportunities: "Cơ hội", research: "Nghiên cứu AI", aiUsage: "Chi phí AI", projects: "Dự án", workflows: "Workflow", approvals: "Phê duyệt", finance: "Tài chính & Ngân sách", audit: "Nhật ký audit", settings: "Cài đặt" },
     common: { loading: "Đang tải dữ liệu đã xác minh…", refresh: "Làm mới", noData: "Chưa có dữ liệu đã xác minh", unavailable: "Chưa triển khai", open: "Mở", close: "Đóng", cancel: "Hủy", confirm: "Xác nhận", previous: "Trước", next: "Sau", search: "Tìm kiếm", all: "Tất cả", details: "Chi tiết", retry: "Thử lại" },
     shell: { tokenLoaded: "Owner token đã nạp cho phiên này", noToken: "Chưa có API token", tokenPlaceholder: "Owner token (chỉ phiên này)", language: "Chuyển ngôn ngữ", theme: "Chuyển giao diện" },
     auth: { title: "Kết nối an toàn", body: "Đăng nhập bằng tài khoản Admin ở thanh trên. Session chỉ ở bộ nhớ phiên trình duyệt, không được lưu vào localStorage.", username: "Tên đăng nhập Admin", password: "Mật khẩu Admin", login: "Đăng nhập", logout: "Đăng xuất", invalid: "Tên đăng nhập hoặc mật khẩu không hợp lệ.", loggedIn: "Đăng nhập thành công." },
@@ -17,7 +17,7 @@ const resources = {
     errors: { unauthorized: "Owner token không hợp lệ.", generic: "API lỗi {{status}}", timeout: "Kết nối API quá thời gian chờ.", failed: "Không thể tải dữ liệu đã xác minh." }
   } },
   en: { translation: {
-    nav: { dashboard: "Dashboard", workforce: "AI Workforce", opportunities: "Opportunities", research: "AI Research", projects: "Projects", workflows: "Workflows", approvals: "Approval Center", finance: "Finance & Budget", audit: "Audit Logs", settings: "Settings" },
+    nav: { dashboard: "Dashboard", workforce: "AI Workforce", opportunities: "Opportunities", research: "AI Research", aiUsage: "AI usage", projects: "Projects", workflows: "Workflows", approvals: "Approval Center", finance: "Finance & Budget", audit: "Audit Logs", settings: "Settings" },
     common: { loading: "Loading verified data…", refresh: "Refresh", noData: "No verified data", unavailable: "Not implemented", open: "Open", close: "Close", cancel: "Cancel", confirm: "Confirm", previous: "Previous", next: "Next", search: "Search", all: "All", details: "Details", retry: "Retry" },
     shell: { tokenLoaded: "Owner token loaded for this session", noToken: "No API token", tokenPlaceholder: "Owner token (session only)", language: "Switch language", theme: "Switch theme" },
     auth: { title: "Secure connection", body: "Sign in with the Admin account in the top bar. The session stays only in browser memory and is never stored in localStorage.", username: "Admin username", password: "Admin password", login: "Sign in", logout: "Sign out", invalid: "Username or password is invalid.", loggedIn: "Signed in successfully." },

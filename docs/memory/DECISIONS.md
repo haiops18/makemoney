@@ -1,5 +1,22 @@
 # Decisions
 
+## 2026-11-05 — Step 6 completion decisions
+
+- Adapters are a closed registry keyed by provider kind with fixed official hosts;
+  the endpoint URL is part of the approved action hash and rechecked at dispatch.
+- Each stage has its own prompt family; new prompt versions are added by migration,
+  historical versions are never edited. The pipeline pins the newest
+  execution-enabled version and effective price at creation time.
+- Direct AI dependencies' validated outputs are passed as `prior_outputs` in the
+  untrusted user message and are bound into the action hash.
+- Source verification is a one-way Owner decision; rejected sources are excluded
+  from provider requests and from promoted evidence.
+- Promotion creates an unscored DRAFT opportunity (`data_origin=AI_RESEARCH`); AI
+  findings are not converted into evidence records.
+- Connection tests require global consent because they transmit the credential;
+  they list models only and never send a prompt.
+- `execution_available` now mirrors consent: it means "requestable", never "approved".
+
 ## 2026-11-05 — invocation and billing uncertainty
 
 Use existing TaskExecution, action-level one-time approval, PostgreSQL reservation

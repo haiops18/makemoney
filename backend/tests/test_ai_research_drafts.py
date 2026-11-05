@@ -64,3 +64,28 @@ def test_research_workflow_draft_is_idempotent_and_uses_safe_handler(client, aut
     prepared = client.get(f"{tasks_url}/{task['id']}/approval-action", params={'policy_id': policy_id}, headers=auth_headers)
     assert prepared.status_code == 200 and prepared.json()['action']['action_payload']['cost_usd'] == '0'
     assert prepared.json()['action']['action_payload']['handler_input']['source_count'] == 0
+
+
+def test_pipeline_verification_and_promotion_fail_closed(client, auth_headers):
+    def key(name): return auth_headers | {'Idempotency-Key': name}
+    run = client.post('/api/v1/ai/research', json={'objective': 'Pipeline guard', 'max_cost_usd': '1'}, headers=key('guard-run')).json()
+    base = f"/api/v1/ai/research/{run['id']}"
+    assert client.post(base + '/pipeline', json={'confirm_no_execution': True}, headers=key('guard-no-wf')).status_code == 409
+    assert client.post(base + '/workflow', json={'name': 'Guarded'}, headers=key('guard-wf')).status_code == 201
+    assert client.post(base + '/pipeline', json={'confirm_no_execution': False}, headers=key('guard-false')).status_code == 422
+    missing = client.post(base + '/pipeline', json={'confirm_no_execution': True}, headers=key('guard-profile'))
+    assert missing.status_code == 409 and 'profile' in missing.json()['detail']
+    source = client.post(base + '/sources', json={'source_name': 'S', 'excerpt': 'E'}, headers=key('guard-source')).json()
+    path = f"{base}/sources/{source['id']}/verification"
+    assert client.post(path, json={'status': 'UNVERIFIED', 'note': 'x'}, headers=key('guard-v0')).status_code == 422
+    assert client.post(path, json={'status': 'VERIFIED', 'note': ''}, headers=key('guard-v1')).status_code == 422
+    first = client.post(path, json={'status': 'VERIFIED', 'note': 'Owner checked'}, headers=key('guard-v2'))
+    assert first.status_code == 200 and first.json()['verified_at']
+    assert client.post(path, json={'status': 'VERIFIED', 'note': 'Owner checked'}, headers=key('guard-v2')).json() == first.json()
+    assert client.post(f"{base}/sources/{run['id']}/verification", json={'status': 'VERIFIED', 'note': 'x'}, headers=key('guard-v3')).status_code == 404
+    results = client.get(base + '/results', headers=auth_headers).json()
+    assert results['stages'] == [] and results['workflow_status'] == 'DRAFT' and results['ai_generated'] is True
+    assert client.post(base + '/promote', json={'title': 'T', 'business_model': 'SAAS'}, headers=key('guard-promote')).status_code == 409
+    usage = client.get('/api/v1/ai/usage', headers=auth_headers).json()
+    assert usage['invocations'] == 0 and usage['held_amount'] == '0.000000'
+    assert client.get('/api/v1/ai/usage').status_code == 401

@@ -39,6 +39,10 @@ class ProviderResponse(BaseModel):
     archived: bool
     is_default: bool
     has_api_key: bool
+    adapter_verified: bool = False
+    last_checked_at: datetime | None = None
+    last_check_status: str | None = None
+    last_check_model_listed: bool | None = None
     created_at: datetime
     updated_at: datetime
 

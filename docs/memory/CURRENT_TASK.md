@@ -1,5 +1,20 @@
 # Current task
 
+## Step 6 implementation complete — 2026-11-05 — release verification in progress
+
+Owner resumed Step 6 ("triển khai makemoney và làm tiếp bước 6 đến khi hoàn thành").
+Branch feat/step6-ai-research, draft PR #6, target v29.0.0. Implemented: verified
+OpenAI/Anthropic/Gemini adapters (official endpoints only), stage-specific immutable
+prompts (migration 0018), prior-stage outputs as untrusted input, Owner source
+verification, 7-stage pipeline creation, results API, promotion to DRAFT opportunity,
+zero-cost connection test, AI usage dashboard with settle/release reconciliation.
+Local evidence: backend 93 unit + full 110 on isolated PostgreSQL 0018 (incl. full
+7-stage run across three fake providers, 4-worker single dispatch, crash after
+DISPATCHED → USAGE_UNKNOWN with hold retained); frontend lint/typecheck/build and
+29 tests. All provider traffic in tests is an injected fake; no real provider call.
+Remaining: E2E, push, CI, merge, tag/release, production deploy. See
+docs/releases/STEP6_VERIFICATION.md for final evidence.
+
 ## Owner-authorized push checkpoint — 2026-11-05 — IN_PROGRESS, implementation paused
 
 Owner requested committing/pushing all current work after the pause. This permits

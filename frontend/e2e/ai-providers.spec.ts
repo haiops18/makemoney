@@ -40,7 +40,8 @@ test('Owner can configure and revoke a provider key without enabling AI executio
   page.on('dialog', dialog => void dialog.accept());
   await row.getByRole('button', { name: 'Thu hồi khóa' }).click();
   await expect(row.getByText('Chưa có khóa')).toBeVisible();
-  await expect(page.getByText('Cấu hình không kích hoạt AI trả phí. Chạy nghiên cứu và kiểm tra kết nối chưa khả dụng.')).toBeVisible();
+  await expect(page.getByText(/Cấu hình không tự kích hoạt AI trả phí\. Chỉ OpenAI, Anthropic và Gemini/)).toBeVisible();
+  await expect(row.getByRole('button', { name: 'Kiểm tra kết nối' })).toBeDisabled();
 });
 
 test('Owner creates a research draft and manually adds an unverified source', async ({ page, request }) => {
@@ -64,7 +65,11 @@ test('Owner creates a research draft and manually adds an unverified source', as
   await page.getByLabel('Trích đoạn').fill('A user-provided statement, not verified market evidence.');
   await page.getByRole('button', { name: 'Thêm nguồn' }).click();
   await expect(page.getByText('Manual test source · UNVERIFIED')).toBeVisible();
-  await expect(page.getByText('Chỉ lưu bản nháp và nguồn do Owner nhập. AI và truy cập nguồn tự động chưa khả dụng.')).toBeVisible();
+  await expect(page.getByText(/AI chỉ chạy khi từng task được phê duyệt riêng và có ngân sách/)).toBeVisible();
+  await page.getByLabel('Ghi chú xác minh').fill('Owner checked the original document');
+  await page.getByRole('button', { name: 'Xác minh', exact: true }).click();
+  await expect(page.getByText('Manual test source · VERIFIED')).toBeVisible();
+  await expect(page.getByText('Đã ghi nhận xác minh nguồn.')).toBeVisible();
   const flow = `Research validation ${Date.now()}`;
   await page.getByLabel('Tên workflow nghiên cứu').fill(flow);
   const [workflowResponse] = await Promise.all([
@@ -72,6 +77,10 @@ test('Owner creates a research draft and manually adds an unverified source', as
     page.getByRole('button', { name: 'Tạo workflow nghiên cứu' }).click(),
   ]);
   const workflowId = (await workflowResponse.json()).id as string;
+  // Without enabled profiles and prices for every stage agent, adding AI stages fails closed.
+  await page.getByRole('button', { name: 'Thêm giai đoạn AI' }).click();
+  await expect(page.getByRole('alert').filter({ hasText: /is required|unavailable/ })).toBeVisible();
+  await expect(page.getByText('Workflow không có giai đoạn AI.')).toHaveCount(0);
   await page.getByRole('link', { name: 'Mở Workflow' }).click();
   await page.getByRole('button', { name: flow, exact: true }).click();
   const tasks = await request.get(`/api/v1/workflows/${workflowId}/tasks`, { headers: { Authorization: authorization } });
@@ -96,6 +105,9 @@ test('Owner creates a research draft and manually adds an unverified source', as
   await expect(execute).toBeEnabled({ timeout: 15000 });
   await execute.click();
   await expect(page.getByText('Validate research draft · SUCCEEDED')).toBeVisible({ timeout: 20000 });
+  await page.getByRole('link', { name: 'Chi phí AI', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Chi phí AI' })).toBeVisible();
+  await expect(page.getByText('Chưa có lượt gọi AI nào.')).toBeVisible();
 });
 
 test('Owner approval controls global AI consent without enabling execution', async ({ page, request }) => {
@@ -120,7 +132,7 @@ test('Owner approval controls global AI consent without enabling execution', asy
   const enable = page.getByRole('button', { name: 'Bật quyền AI', exact: true });
   await expect(enable).toBeEnabled({ timeout: 15000 });
   await enable.click();
-  await expect(page.getByText(/Quyền Owner: Đã bật/)).toContainText('Thực thi AI: Chưa khả dụng');
+  await expect(page.getByText(/Quyền Owner: Đã bật/)).toContainText('Thực thi AI: Có thể yêu cầu theo từng task');
   await page.getByRole('button', { name: 'Tắt quyền AI', exact: true }).click();
   await expect(page.getByText(/Quyền Owner: Đã tắt/)).toBeVisible();
 });

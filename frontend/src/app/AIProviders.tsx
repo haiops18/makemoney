@@ -5,7 +5,8 @@ import { z } from 'zod';
 import AIAgentProfiles from './AIAgentProfiles';
 import AIModelPrices from './AIModelPrices';
 
-const provider = z.object({ id: z.string().uuid(), name: z.string(), kind: z.string(), base_url: z.string().nullable(), default_model: z.string(), enabled: z.boolean(), archived: z.boolean(), is_default: z.boolean(), has_api_key: z.boolean() });
+const provider = z.object({ id: z.string().uuid(), name: z.string(), kind: z.string(), base_url: z.string().nullable(), default_model: z.string(), enabled: z.boolean(), archived: z.boolean(), is_default: z.boolean(), has_api_key: z.boolean(), adapter_verified: z.boolean().optional(), last_checked_at: z.string().nullable().optional(), last_check_status: z.string().nullable().optional(), last_check_model_listed: z.boolean().nullable().optional() });
+const check = z.object({ status: z.string(), model_listed: z.boolean().nullable() });
 const createSchema = z.object({ name: z.string().trim().min(1).max(150), kind: z.enum(['OPENAI', 'GEMINI', 'ANTHROPIC', 'OPENAI_COMPATIBLE']), default_model: z.string().trim().min(1).max(200), base_url: z.string().url().startsWith('https://').max(2048).nullable(), api_key: z.string().min(1).max(4096).optional() });
 type Provider = z.infer<typeof provider>;
 
@@ -50,9 +51,21 @@ export default function AIProviders({ token }: { token: string }) {
     } catch (e) { setError(e instanceof Error ? e.message : tr('Không thể lưu.', 'Unable to save.')); }
     finally { setBusy(false); }
   }
+  async function testConnection(item: Provider) {
+    if (!window.confirm(tr('Gửi khóa đã lưu tới endpoint chính thức để liệt kê model? Không gửi prompt và không phát sinh chi phí suy luận.', 'Send the stored key to the official endpoint to list models? No prompt is sent and no inference is billed.'))) return;
+    setBusy(true); setError(''); setSuccess('');
+    try {
+      const response = await fetch(`${base}/${item.id}/connection-test`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Idempotency-Key': crypto.randomUUID() } });
+      if (!response.ok) { const detail = await response.json().catch(() => null) as { detail?: unknown } | null; throw new Error(typeof detail?.detail === 'string' ? detail.detail : `API ${response.status}`); }
+      const result = check.parse(await response.json());
+      await cache.invalidateQueries({ queryKey: ['ai-providers'] });
+      setSuccess(`${tr('Kết quả kiểm tra', 'Connection test')}: ${result.status}${result.model_listed === false ? tr(' · model mặc định không có trong danh sách', ' · default model not listed') : ''}`);
+    } catch (e) { setError(e instanceof Error ? e.message : tr('Không thể kiểm tra.', 'Unable to test.')); }
+    finally { setBusy(false); }
+  }
   function edit(item: Provider) { setEditing(item); setName(item.name); setKind(item.kind as typeof kind); setModel(item.default_model); setBaseUrl(item.base_url ?? ''); if (secret.current) secret.current.value = ''; }
   return <section className="panel"><h2>{tr('Quản lý AI provider', 'AI providers')}</h2>
-    <p>{tr('Cấu hình không kích hoạt AI trả phí. Chạy nghiên cứu và kiểm tra kết nối chưa khả dụng.', 'Configuration does not activate paid AI. Research execution and connection tests are unavailable.')}</p>
+    <p>{tr('Cấu hình không tự kích hoạt AI trả phí. Chỉ OpenAI, Anthropic và Gemini với endpoint chính thức được hỗ trợ; URL tùy chỉnh và OPENAI_COMPATIBLE bị chặn khi thực thi. Kiểm tra kết nối cần bật quyền AI toàn cục.', 'Configuration does not activate paid AI by itself. Only OpenAI, Anthropic and Gemini on their official endpoints are supported; custom URLs and OPENAI_COMPATIBLE are blocked from execution. Connection tests require global AI consent.')}</p>
     {!token && <p>{tr('Đăng nhập Owner để quản lý.', 'Sign in as Owner to manage providers.')}</p>}
     {token && <><form onSubmit={event => { event.preventDefault(); const input = createSchema.safeParse({ name, kind, default_model: model, base_url: baseUrl.trim() || null, ...(secret.current?.value ? { api_key: secret.current.value } : {}) }); if (!input.success) { setError(tr('Kiểm tra tên, model, URL và khóa.', 'Check name, model, URL and key.')); return; } const { kind: providerKind, ...rest } = input.data; void mutate(editing ? `/${editing.id}` : '', editing ? 'PATCH' : 'POST', editing ? rest : { ...rest, kind: providerKind }); }}>
       <h3>{editing ? tr('Sửa provider', 'Edit provider') : tr('Thêm provider', 'Add provider')}</h3>
@@ -65,8 +78,10 @@ export default function AIProviders({ token }: { token: string }) {
     </form>{error && <p role="alert">{error}</p>}{success && <p role="status">{success}</p>}
     {query.isLoading && <p>{tr('Đang tải…', 'Loading…')}</p>}{query.error && <p role="alert">{tr('Không thể tải provider.', 'Unable to load providers.')}</p>}
     {query.data?.length === 0 && <p>{tr('Chưa có provider.', 'No providers configured.')}</p>}
-    {query.data?.map(item => <article className="panel" key={item.id}><b>{item.name}</b><p>{item.kind} · {item.default_model} · {item.is_default ? tr('Mặc định', 'Default') : ''} · {item.has_api_key ? tr('Đã lưu khóa', 'Key configured') : tr('Chưa có khóa', 'No key')}</p>
+    {query.data?.map(item => <article className="panel" key={item.id}><b>{item.name}</b><p>{item.kind} · {item.default_model} · {item.is_default ? tr('Mặc định', 'Default') : ''} · {item.has_api_key ? tr('Đã lưu khóa', 'Key configured') : tr('Chưa có khóa', 'No key')} · {item.adapter_verified ? tr('Adapter đã xác minh', 'Verified adapter') : tr('Không hỗ trợ thực thi', 'Execution unsupported')}</p>
+      {item.last_check_status && <p>{tr('Kiểm tra gần nhất', 'Last check')}: {item.last_check_status}{item.last_check_model_listed === false ? tr(' · model không có trong danh sách', ' · model not listed') : ''}{item.last_checked_at ? ` · ${new Date(item.last_checked_at).toLocaleString(vi ? 'vi-VN' : 'en-US', { timeZone: 'Asia/Ho_Chi_Minh' })}` : ''}</p>}
       <div className="toolbar"><button disabled={busy} onClick={() => edit(item)}>{tr('Sửa', 'Edit')}</button><button disabled={busy} onClick={() => void mutate(`/${item.id}`, 'PATCH', { enabled: !item.enabled })}>{item.enabled ? tr('Tắt cấu hình', 'Disable configuration') : tr('Bật cấu hình', 'Enable configuration')}</button>
+      <button disabled={busy || !item.has_api_key || !item.adapter_verified} onClick={() => void testConnection(item)}>{tr('Kiểm tra kết nối', 'Test connection')}</button>
       <button disabled={busy || item.is_default} onClick={() => void mutate(`/${item.id}/default`, 'POST', {})}>{tr('Chọn mặc định', 'Set default')}</button>
       <button disabled={busy} onClick={() => setPricingProvider(pricingProvider?.id === item.id ? null : item)}>{tr('Cấu hình giá', 'Configure prices')}</button>
       <button disabled={busy || !item.has_api_key} onClick={() => { if (window.confirm(tr('Thu hồi khóa đã lưu?', 'Revoke the stored key?'))) void mutate(`/${item.id}`, 'PATCH', { revoke_api_key: true }); }}>{tr('Thu hồi khóa', 'Revoke key')}</button>

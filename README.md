@@ -1,23 +1,52 @@
 # AUTO MONEY AI
 
-## Step 6 provider configuration — IN_PROGRESS
+## AI Brain & Research Agents — Step 6 (v29.0.0)
 
-Owner-only provider configuration is being developed. The Settings screen can
-store and rotate a provider API key; the backend encrypts it with a Fernet key
-supplied by the deployment secret manager through `AI_CREDENTIALS_KEY`. No key
-is shipped with the repository. Without a valid key, storing a credential fails
-closed. Protect and back up this key independently: changing or losing it makes
-existing ciphertext inaccessible; automatic key rotation is not implemented.
+The Owner can run a seven-stage AI research pipeline on Owner-entered evidence:
+research plan → market research and competitor analysis → opportunity generation
+→ financial analysis and risk review → final report. The report can be promoted
+to a DRAFT opportunity for the existing, Owner-driven scoring.
 
-Provider configuration does not authorize or invoke a model. AI execution and
-connection testing are not implemented. In particular, a saved base URL has not
-been approved for network access: DNS, redirects and private address restrictions
-must be enforced at the eventual network boundary before any request is allowed.
+Controls (all fail closed):
 
-Owner may also create a research draft and add unverified excerpts. A separate,
-default-off global AI consent uses the existing Approval Center; even after consent,
-individual AI calls remain unavailable until their own policy, approval and budget
-controls are implemented. See `docs/memory/CURRENT_TASK.md` for current verification.
+- **Providers:** OpenAI (Responses API), Anthropic (Messages API) and Google Gemini
+  (`generateContent`) on their official endpoints only. Custom base URLs and
+  `OPENAI_COMPATIBLE` are stored but never receive a credential or prompt.
+  Keys are encrypted with `AI_CREDENTIALS_KEY` (Fernet, from the deployment secret
+  manager); losing or changing it makes stored keys unreadable.
+- **Consent:** a default-off global consent enabled only through the Approval Center.
+- **Per task:** each AI stage needs its own one-time approval of the exact
+  server-built request, model, prompt version, price version and cost ceiling,
+  plus a PostgreSQL budget reservation. Global consent does not approve a task.
+- **Dispatch:** one request per approval, pinned public HTTPS address, total
+  deadline, no redirects, no tools, no automatic retry or fallback. A request that
+  may have been billed is never sent again automatically.
+- **Evidence:** sources are never fetched. The Owner verifies or rejects each
+  excerpt; only verified sources may support a `FACT`, rejected ones are never sent.
+  Model output is validated against a strict schema and stays labelled unverified.
+- **Cost:** token-based cost is an estimate. Unknown outcomes keep their budget
+  hold. The Owner reconciles each invocation against the provider invoice on the
+  **AI usage** page (settle or release); only then is a cost confirmed.
+
+Owner workflow: *Settings* → add provider and key, set model prices, assign
+agent profiles (research, ceo, finance, auditor), request and enable global
+consent, optionally *Test connection*. *AI research* → create draft, add and
+verify sources, create workflow, *Add AI stages*. *Workflows* → submit/approve/start,
+then approve and run each stage. *AI usage* → review and reconcile costs.
+
+Isolated verification (test-only key and loopback port):
+
+```sh
+export STEP6_TEST_KEY=$(python3 -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())")
+docker compose -p step6-ci -f compose.step6-test.yml up --build -d --wait
+docker compose -p step6-ci -f compose.step6-test.yml stop worker
+docker compose -p step6-ci -f compose.step6-test.yml exec -T backend python -m pytest -q
+docker compose -p step6-ci -f compose.step6-test.yml start worker
+cd frontend && E2E_BASE_URL=http://127.0.0.1:18007 E2E_STEP6=1 npx playwright test e2e/ai-providers.spec.ts
+```
+
+Automated tests use injected fake provider transports; no test contacts a real
+provider. See `docs/releases/STEP6_VERIFICATION.md`.
 
 ## Workflow orchestration — Step 5 RELEASED (v28.0.0)
 
@@ -83,7 +112,7 @@ The migration creates the seven logical agents from the design. `PATCH /api/v1/a
 
 Sprint 2 Module 1 adds owner-only Policy & Approval controls: `GET /api/v1/policies`, `POST /api/v1/policies/evaluate`, and the `/api/v1/approvals` create/list/detail/approve/reject endpoints. Approvals bind a canonical server-side action hash, policy version, expiry and one-time authorization. They do not execute any external action.
 
-The project intentionally does not execute models, browse the web, charge providers, publish anything, or run untrusted code yet. Those are later gated workflows, not safe defaults.
+The project does not browse the web, publish anything, take payments or run untrusted code. Model execution exists only through the Step 6 approval and budget controls above.
 
 ## Tests
 

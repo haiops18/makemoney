@@ -38,6 +38,9 @@ class AIProvider(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_check_status: Mapped[str | None] = mapped_column(String(30))
+    last_check_model_listed: Mapped[bool | None] = mapped_column(Boolean)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -171,6 +174,7 @@ class AIResearchRun(Base):
     target_customers: Mapped[str | None] = mapped_column(String(500))
     max_cost_usd: Mapped[Any] = mapped_column(Numeric(18, 6), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default='DRAFT', nullable=False)
+    opportunity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('opportunities.id', ondelete='RESTRICT'), unique=True)
     created_by: Mapped[str] = mapped_column(String(100), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -179,7 +183,8 @@ class AIResearchRun(Base):
 class AIResearchSource(Base):
     __tablename__ = 'ai_research_sources'
     __table_args__ = (
-        CheckConstraint("verification_status IN ('UNVERIFIED')", name='ck_ai_research_source_verification'),
+        CheckConstraint("verification_status IN ('UNVERIFIED','VERIFIED','REJECTED')", name='ck_ai_research_source_verification'),
+        CheckConstraint("(verification_status = 'UNVERIFIED') = (verified_at IS NULL)", name='ck_ai_research_source_verifier'),
         Index('ix_ai_research_sources_run_created', 'research_run_id', 'created_at', 'id'),
     )
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -188,6 +193,9 @@ class AIResearchSource(Base):
     source_url: Mapped[str | None] = mapped_column(String(2048))
     excerpt: Mapped[str] = mapped_column(Text, nullable=False)
     verification_status: Mapped[str] = mapped_column(String(20), default='UNVERIFIED', nullable=False)
+    verified_by: Mapped[str | None] = mapped_column(String(100))
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    verification_note: Mapped[str | None] = mapped_column(String(1000))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 

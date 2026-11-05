@@ -12,13 +12,13 @@ from uuid import UUID, uuid4
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.ai_brain.openai_contract import build_request
-from app.ai_brain.openai_contract import ProviderOutputError, parse_response
+from app.ai_brain.adapters import adapter_for
+from app.ai_brain.openai_contract import ProviderOutputError
 from app.ai_brain.accounting import record_outcome
 from app.ai_brain.credentials import decrypt_credential
 from app.ai_brain.network import post_provider_json
 from app.ai_brain.pricing import Pricing
-from app.ai_brain.prompts import EvidenceInput, PromptTemplate, ResearchRequest
+from app.ai_brain.prompts import EvidenceInput, PriorStageOutput, PromptTemplate, ResearchRequest
 from app.approvals.service import consume_action_authorization, evaluate_policy
 from app.approvals.service import is_expired
 from app.core.action_hash import action_hash, canonical_action
@@ -28,6 +28,11 @@ from app.orchestration.state import TASK_TRANSITIONS, validate_transition
 
 AI_TASK_ROLES = {'AI_RESEARCH_PLAN': 'research', 'AI_MARKET_RESEARCH': 'research', 'AI_COMPETITOR_ANALYSIS': 'research',
                  'AI_OPPORTUNITY_GENERATION': 'ceo', 'AI_FINANCIAL_ANALYSIS': 'finance', 'AI_RISK_REVIEW': 'auditor', 'AI_RESEARCH_REPORT': 'ceo'}
+# Each stage uses its own immutable prompt family; versions are pinned per task.
+AI_TASK_PROMPTS = {'AI_RESEARCH_PLAN': 'research', 'AI_MARKET_RESEARCH': 'market_research', 'AI_COMPETITOR_ANALYSIS': 'competitor_analysis',
+                   'AI_OPPORTUNITY_GENERATION': 'opportunity_generation', 'AI_FINANCIAL_ANALYSIS': 'financial_analysis',
+                   'AI_RISK_REVIEW': 'risk_review', 'AI_RESEARCH_REPORT': 'research_report'}
+MAX_PRIOR_OUTPUTS = 10
 
 
 class AIExecutionDenied(ValueError):
@@ -36,6 +41,25 @@ class AIExecutionDenied(ValueError):
 
 def _aware(value: datetime) -> datetime:
     return value if value.tzinfo else value.replace(tzinfo=UTC)
+
+
+def _prior_outputs(db: Session, task: WorkflowTask) -> list[PriorStageOutput]:
+    """Validated outputs of direct AI dependencies, ordered deterministically."""
+    parents = list(db.scalars(select(WorkflowTask).join(TaskDependency, TaskDependency.depends_on_task_id == WorkflowTask.id)
+                              .where(TaskDependency.task_id == task.id).order_by(WorkflowTask.created_at, WorkflowTask.id)))
+    outputs = []
+    for parent in parents:
+        if parent.task_type not in AI_TASK_ROLES or parent.status != 'SUCCEEDED':
+            continue
+        invocation = db.scalar(select(AIInvocation).join(TaskExecution, TaskExecution.id == AIInvocation.execution_id)
+                               .where(TaskExecution.task_id == parent.id, TaskExecution.status == 'SUCCEEDED', AIInvocation.status == 'SUCCEEDED')
+                               .order_by(TaskExecution.attempt_number.desc()).limit(1))
+        if invocation is None or not isinstance(invocation.output_json, dict):
+            raise AIExecutionDenied('A prior AI stage output is unavailable')
+        outputs.append(PriorStageOutput(stage=parent.task_type, summary=invocation.output_json['summary'], findings=invocation.output_json.get('findings', [])))
+    if len(outputs) > MAX_PRIOR_OUTPUTS:
+        raise AIExecutionDenied('AI task has too many prior stage outputs')
+    return outputs
 
 
 def prepare_ai_action(db: Session, workflow_id: UUID, task_id: UUID, policy_id: UUID) -> tuple[dict, str]:
@@ -59,7 +83,8 @@ def prepare_ai_action(db: Session, workflow_id: UUID, task_id: UUID, policy_id: 
     provider = db.scalar(select(AIProvider).where(AIProvider.id == profile.provider_id).with_for_update())
     if provider is None or not provider.enabled or provider.archived or not provider.encrypted_api_key:
         raise AIExecutionDenied('Provider configuration or credential is unavailable')
-    if provider.kind != 'OPENAI' or provider.base_url not in (None, 'https://api.openai.com/v1'):
+    adapter = adapter_for(provider.kind, provider.base_url)
+    if adapter is None:
         raise AIExecutionDenied('Provider adapter has not been verified for this endpoint')
     if profile.temperature is not None:
         raise AIExecutionDenied('Model temperature capability has not been verified')
@@ -73,18 +98,25 @@ def prepare_ai_action(db: Session, workflow_id: UUID, task_id: UUID, policy_id: 
     now = datetime.now(UTC)
     if price is None or _aware(price.effective_at) > now or (price.expires_at is not None and _aware(price.expires_at) <= now):
         raise AIExecutionDenied('Model price version is unavailable or not effective')
-    if (prompt is None or prompt.name != 'research' or prompt.constraints_json.get('provider_execution') is not True
+    if (prompt is None or prompt.name != AI_TASK_PROMPTS[task.task_type] or prompt.constraints_json.get('provider_execution') is not True
         or prompt.constraints_json.get('tools') != [] or prompt.constraints_json.get('external_actions') is not False):
         raise AIExecutionDenied('Research prompt version is unavailable')
     research = db.scalar(select(AIResearchRun).where(AIResearchRun.id == workflow.research_run_id).with_for_update())
     if research is None or research.status != 'DRAFT':
         raise AIExecutionDenied('Research input is unavailable')
-    sources = list(db.scalars(select(AIResearchSource).where(AIResearchSource.research_run_id == research.id).order_by(AIResearchSource.id).limit(21)))
+    # Owner-rejected sources are never sent to a provider.
+    sources = list(db.scalars(select(AIResearchSource).where(AIResearchSource.research_run_id == research.id, AIResearchSource.verification_status != 'REJECTED')
+                              .order_by(AIResearchSource.id).limit(21)))
     if len(sources) > 20:
         raise AIExecutionDenied('Research context exceeds the source limit')
-    request = ResearchRequest(objective=research.objective, evidence=[EvidenceInput(source_id=source.id, text=source.excerpt) for source in sources])
+    request = ResearchRequest(objective=research.objective, target_market=research.target_market, target_customers=research.target_customers,
+                              evidence=[EvidenceInput(source_id=source.id, text=source.excerpt) for source in sources], prior_outputs=_prior_outputs(db, task))
     template = PromptTemplate(prompt.name, prompt.version, prompt.system_text, prompt.developer_text)
-    wire = build_request(profile.model_id, template, request, profile.max_output_tokens)
+    try:
+        wire = adapter.build(profile.model_id, template, request, profile.max_output_tokens)
+        endpoint = adapter.inference_url(profile.model_id)
+    except ValueError:
+        raise AIExecutionDenied('Model identifier or output limit is invalid for this provider') from None
     encoded_size = len(json.dumps(wire, ensure_ascii=False, separators=(',', ':')).encode('utf-8'))
     # Conservative estimate only. Actual provider tokenization/billing can differ;
     # unknown charges must remain reserved rather than being assumed zero.
@@ -99,7 +131,8 @@ def prepare_ai_action(db: Session, workflow_id: UUID, task_id: UUID, policy_id: 
                'credential_version': hashlib.sha256(provider.encrypted_api_key.encode()).hexdigest(),
                'price_id': str(price.id), 'price_version': price.version, 'prompt_version_id': str(prompt.id), 'prompt_version': prompt.version,
                'timeout_seconds': min(task.timeout_seconds, profile.timeout_seconds), 'max_output_tokens': profile.max_output_tokens,
-               'estimated_input_tokens': input_ceiling, 'cost_estimate_usd': str(estimate), 'request': wire}
+               'estimated_input_tokens': input_ceiling, 'cost_estimate_usd': str(estimate), 'endpoint': endpoint, 'request': wire}
+    payload['known_source_ids'] = [str(source.id) for source in sources]
     payload['verified_source_ids'] = [str(source.id) for source in sources if source.verification_status == 'VERIFIED']
     action = canonical_action('AI_INFERENCE', payload, 'workflow_task', task.id, policy.id, policy.version, 'ONCE')
     return action, action_hash(action)
@@ -109,8 +142,8 @@ def queue_ai_execution(db: Session, workflow_id: UUID, task_id: UUID, policy_id:
     """Atomically consume one action approval and reserve one execution attempt.
 
     Caller owns the transaction and must commit or roll back this operation as a
-    whole. No provider is contacted and PREPARED invocations are not dispatchable
-    by the current worker until its dedicated execution checks are implemented.
+    whole. No provider is contacted here; the worker dispatches the PREPARED
+    invocation only after claiming it with a fresh lease and rechecking controls.
     """
     if actor != 'owner':
         raise AIExecutionDenied('Owner authorization is required')
@@ -162,7 +195,7 @@ def dispatch_invocation(factory, execution_id: UUID, lease_token: UUID, *, trans
 
     A crash after DISPATCHED leaves an uncertain billing outcome. This operation
     never redispatches a DISPATCHED invocation and never releases its reservation.
-    The current production worker does not call this function yet.
+    The worker calls this only for a claimed AI task with a valid lease.
     """
     if transport is None:
         transport = post_provider_json
@@ -210,7 +243,10 @@ def dispatch_invocation(factory, execution_id: UUID, lease_token: UUID, *, trans
         payload = action['action_payload']
         request_payload = payload['request']
         timeout = payload['timeout_seconds']
-        known_sources = {item.source_id for item in ResearchRequest.model_validate_json(request_payload['input'][-1]['content']).evidence}
+        adapter = adapter_for(provider.kind, provider.base_url)
+        if adapter is None or payload['endpoint'] != adapter.inference_url(payload['model_id']):
+            raise AIExecutionDenied('Provider adapter has not been verified for this endpoint')
+        known_sources = {UUID(value) for value in payload['known_source_ids']}
         verified_sources = {UUID(value) for value in payload['verified_source_ids']}
         invocation.status = 'DISPATCHED'
         invocation.started_at = datetime.now(UTC)
@@ -220,14 +256,14 @@ def dispatch_invocation(factory, execution_id: UUID, lease_token: UUID, *, trans
     # inference tools, provider fallback or automatic request retries are enabled.
     try:
         try:
-            status, raw = transport('https://api.openai.com/v1/responses', {'api.openai.com'}, {'Authorization': f'Bearer {credential}'}, request_payload, timeout)
+            status, raw = transport(payload['endpoint'], {adapter.host}, adapter.headers(credential), request_payload, timeout)
         except Exception:
             raise ProviderOutputError('PROVIDER_OUTCOME_UNKNOWN') from None
         finally:
             credential = None
         if not 200 <= status < 300:
             raise ProviderOutputError('PROVIDER_HTTP_OUTCOME_UNKNOWN')
-        result = parse_response(raw, known_sources, verified_sources)
+        result = adapter.parse(raw, known_sources, verified_sources)
     except ProviderOutputError as error:
         record_outcome(factory, execution_id, None, error)
         raise
