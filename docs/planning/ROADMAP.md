@@ -1,6 +1,6 @@
 # Roadmap
 
-Step 6 / AI Brain & Research Agents: implementation complete; v29.0.0 release verification in progress.
+Step 6 / AI Brain & Research Agents: COMPLETED in v29.0.0 (released and deployed).
 Next roadmap step after release: Step 7, subject to separate Owner scope.
 
 Step 6 / AI Brain & Research Agents is IN_PROGRESS; provider configuration,

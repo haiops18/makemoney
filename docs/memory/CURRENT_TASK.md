@@ -1,5 +1,12 @@
 # Current task
 
+## Step 6 COMPLETED — v29.0.0 released and deployed — 2026-11-05
+
+Verified release https://github.com/haiops18/makemoney/releases/tag/v29.0.0 at
+`a85484a`; main, tag and release CI PASS. Deployed locally at migration 0018.
+See docs/releases/STEP6_VERIFICATION.md. Next: Step 7, subject to Owner scope.
+Older Step 6 IN_PROGRESS entries below are historical.
+
 ## Step 6 implementation complete — 2026-11-05 — release verification in progress
 
 Owner resumed Step 6 ("triển khai makemoney và làm tiếp bước 6 đến khi hoàn thành").

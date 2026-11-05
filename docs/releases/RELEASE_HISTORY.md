@@ -1,5 +1,16 @@
 # Release history
 
+## v29.0.0 — Step 6 COMPLETED — 2026-11-05
+
+- Release: https://github.com/haiops18/makemoney/releases/tag/v29.0.0
+- Source: `a85484a87cd4ec16354e8648c29e5706194c253f` (PR #6).
+- Annotated tag: `3c640480658c00e1ae8958eb19c0e33b0d26132c`; peeled commit is source above.
+- Published 2026-11-05T16:04:04Z, neither draft nor prerelease.
+- Main CI 42057105462, tag CI 42060339470, release workflow 42060339387 — PASS.
+- Tests: 111 backend (PostgreSQL), 29 frontend, Step 6 Playwright E2E; pip-audit
+  clean; npm audit high clean (7 moderate dev-only findings).
+- Deployed locally (compose project `makemoney`) at migration 20261105_0018.
+
 ## v28.0.0 — Step 5 COMPLETED — 2026-11-03
 
 - Release: https://github.com/haiops18/makemoney/releases/tag/v28.0.0
