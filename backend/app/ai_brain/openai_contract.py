@@ -37,7 +37,7 @@ def build_request(model: str, prompt: PromptTemplate, request: ResearchRequest, 
 def parse_response(raw: object, known_sources: set[UUID], verified_sources: set[UUID]) -> ProviderResult:
     if not isinstance(raw, dict):
         raise ProviderOutputError('INVALID_RESPONSE')
-    request_id = raw.get('id') if isinstance(raw.get('id'), str) else None
+    request_id = raw.get('id') if isinstance(raw.get('id'), str) and 1 <= len(raw['id']) <= 200 else None
     token_data = raw.get('usage')
     usage = None
     if isinstance(token_data, dict) and type(token_data.get('input_tokens')) is int and type(token_data.get('output_tokens')) is int:

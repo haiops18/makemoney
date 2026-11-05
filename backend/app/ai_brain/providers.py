@@ -9,8 +9,8 @@ class Usage:
     output_tokens: int
 
     def __post_init__(self):
-        if self.input_tokens < 0 or self.output_tokens < 0:
-            raise ValueError('Token usage cannot be negative')
+        if any(type(value) is not int or not 0 <= value <= 2147483647 for value in (self.input_tokens, self.output_tokens)):
+            raise ValueError('Token usage must fit a nonnegative database integer')
 
 
 @dataclass(frozen=True)

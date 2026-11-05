@@ -10,7 +10,7 @@ import socket
 import ssl
 import time
 from queue import Empty, Queue
-from threading import BoundedSemaphore, Thread
+from threading import BoundedSemaphore, Thread, Timer
 from urllib.parse import urlsplit
 
 
@@ -82,6 +82,7 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
         # the original hostname and sends it as SNI, not the pinned address.
         raw = socket.create_connection((self._pinned_address, 443), self.timeout)
         try:
+            self.sock = raw
             self.sock = self._context.wrap_socket(raw, server_hostname=self.host)
         except Exception:
             raw.close()
@@ -104,6 +105,19 @@ def post_provider_json(url: str, allowed_hosts: set[str], headers: dict[str, str
     if remaining <= 0:
         raise NetworkDenied('Provider request deadline expired before dispatch')
     connection = _PinnedHTTPSConnection(host, address, remaining)
+    def abort():
+        # A per-read socket timeout alone permits a peer to trickle bytes
+        # indefinitely. Shutdown interrupts header/body reads at the total deadline.
+        sock = getattr(connection, 'sock', None)
+        if sock is not None:
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+        connection.close()
+    timer = Timer(remaining, abort)
+    timer.daemon = True
+    timer.start()
     try:
         connection.request('POST', path, body=body, headers={'Content-Type': 'application/json', **headers})
         response = connection.getresponse()
@@ -117,4 +131,5 @@ def post_provider_json(url: str, allowed_hosts: set[str], headers: dict[str, str
             raise NetworkDenied('Provider response is not valid bounded JSON') from None
         return response.status, result
     finally:
+        timer.cancel()
         connection.close()

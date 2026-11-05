@@ -1,5 +1,29 @@
 # Known issues
 
+## Checkpoint push clarification — 2026-11-05
+
+The latest reconciliation/idempotency edits were included in a fresh 100-test
+backend PASS on isolated PostgreSQL at migration 0017. Prior notes saying they have
+not been rerun are historical. This does not add dedicated AI concurrency/crash,
+full AI research E2E or production provider verification; those gaps remain open.
+The feature remains paused and IN_PROGRESS. The new push needs its own GitHub CI;
+previous successful CI is not evidence for the new commit.
+
+## Latest Step 6 checkpoint — paused by Owner, 2026-11-05
+
+The new local execution path is partially integrated and tested with an injected
+fake provider transport. Seed prompt 1.0.0 still explicitly denies provider
+execution; API/UI execution availability remains false. Only the OpenAI wire/dispatch
+path is implemented locally; Gemini, Anthropic and compatible runtime adapters,
+connection tests, substantive research agents, source retrieval/verification,
+Opportunity generation and usage dashboard remain incomplete. Full AI concurrency,
+E2E, Docker and security acceptance have not passed. Latest finance reconciliation
+and compatibility edits need retesting. Unknown charges remain reserved; token-rate
+cost is not confirmed billing. No absolute provider billing cap is claimed.
+
+CI SUCCESS applies to pushed commit 2647d60, not uncommitted invocation code.
+Earlier statements that no invocation code exists are historical, not current.
+
 Research drafts can now have a deterministic validation workflow. AI invocation,
 billing-uncertainty accounting, live provider integration and substantive research
 agents remain incomplete. Transport primitives are unconnected and do not by

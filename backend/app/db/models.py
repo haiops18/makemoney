@@ -97,6 +97,44 @@ class AIExecutionControl(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 
+class AIInvocation(Base):
+    __tablename__ = 'ai_invocations'
+    __table_args__ = (
+        UniqueConstraint('execution_id', name='uq_ai_invocation_execution'),
+        UniqueConstraint('reservation_id', name='uq_ai_invocation_reservation'),
+        UniqueConstraint('usage_record_id', name='uq_ai_invocation_usage'),
+        UniqueConstraint('provider_id', 'provider_request_id', name='uq_ai_invocation_provider_request'),
+        CheckConstraint("status IN ('PREPARED','DISPATCHED','SUCCEEDED','FAILED','USAGE_UNKNOWN')", name='ck_ai_invocation_status'),
+        CheckConstraint('input_tokens IS NULL OR input_tokens >= 0', name='ck_ai_invocation_input_tokens'),
+        CheckConstraint('output_tokens IS NULL OR output_tokens >= 0', name='ck_ai_invocation_output_tokens'),
+        CheckConstraint('estimated_cost >= 0 AND (calculated_cost IS NULL OR calculated_cost >= 0)', name='ck_ai_invocation_cost'),
+        Index('ix_ai_invocations_status_created', 'status', 'created_at'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    execution_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('task_executions.id', ondelete='RESTRICT'), nullable=False)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('ai_research_runs.id', ondelete='RESTRICT'), nullable=False)
+    provider_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('ai_providers.id', ondelete='RESTRICT'), nullable=False)
+    profile_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('ai_agent_profiles.id', ondelete='RESTRICT'), nullable=False)
+    prompt_version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('ai_prompt_versions.id', ondelete='RESTRICT'), nullable=False)
+    price_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('ai_model_prices.id', ondelete='RESTRICT'), nullable=False)
+    reservation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('budget_reservations.id', ondelete='RESTRICT'), nullable=False)
+    usage_record_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('usage_records.id', ondelete='RESTRICT'))
+    status: Mapped[str] = mapped_column(String(30), default='PREPARED', nullable=False)
+    model_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    agent_role: Mapped[str] = mapped_column(String(100), nullable=False)
+    request_snapshot_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    provider_request_id: Mapped[str | None] = mapped_column(String(200))
+    input_tokens: Mapped[int | None] = mapped_column(Integer)
+    output_tokens: Mapped[int | None] = mapped_column(Integer)
+    estimated_cost: Mapped[Any] = mapped_column(Numeric(18, 6), nullable=False)
+    calculated_cost: Mapped[Any | None] = mapped_column(Numeric(18, 6))
+    output_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    error_code: Mapped[str | None] = mapped_column(String(100))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class AIAgentProfile(Base):
     __tablename__ = 'ai_agent_profiles'
     __table_args__ = (

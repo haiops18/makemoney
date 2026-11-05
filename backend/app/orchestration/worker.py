@@ -18,6 +18,8 @@ from app.orchestration.gate import GateDenied, task_action
 from app.orchestration.handlers import dispatch
 from app.orchestration.retry import is_retryable, retry_after
 from app.orchestration.state import TASK_TRANSITIONS, WORKFLOW_TRANSITIONS, validate_transition
+from app.ai_brain.execution import AI_TASK_ROLES, AIExecutionDenied, dispatch_invocation, prepare_ai_action
+from app.db.models import AIInvocation
 
 
 def _transition(db: Session, workflow: Workflow, task: WorkflowTask | None, target: str, actor: str, kind: str) -> None:
@@ -106,16 +108,22 @@ def claim_one(factory: sessionmaker) -> tuple[UUID, UUID, str, dict, int] | None
             try:
                 if not execution.policy_id or not execution.authorization_id or not execution.action_hash or execution.input_snapshot_json is None:
                     raise GateDenied('Execution authorization is incomplete')
-                action, digest = task_action(db, workflow.id, task.id, execution.policy_id)
+                is_ai = task.task_type in AI_TASK_ROLES
+                action, digest = (prepare_ai_action if is_ai else task_action)(db, workflow.id, task.id, execution.policy_id)
                 auth = db.scalar(select(ActionAuthorization).where(ActionAuthorization.id == execution.authorization_id).with_for_update())
                 approval = db.get(ApprovalRequest, auth.approval_id) if auth else None
                 unfinished = db.scalar(select(func.count()).select_from(TaskDependency).join(WorkflowTask, WorkflowTask.id == TaskDependency.depends_on_task_id).where(TaskDependency.task_id == task.id, WorkflowTask.status != 'SUCCEEDED')) or 0
                 if (not auth or not approval or auth.status != 'CONSUMED' or approval.status != 'CONSUMED'
                     or is_expired(auth.expires_at) or is_expired(approval.expires_at) or unfinished
                     or digest != execution.action_hash or digest != auth.action_hash or digest != approval.action_hash
-                    or action['action_payload']['handler_input'] != execution.input_snapshot_json):
+                    or (action['action_payload'] if is_ai else action['action_payload']['handler_input']) != execution.input_snapshot_json):
                     raise GateDenied('Execution authorization or input changed')
-            except GateDenied:
+            except (GateDenied, AIExecutionDenied):
+                invocation = db.scalar(select(AIInvocation).where(AIInvocation.execution_id == execution.id).with_for_update())
+                if invocation and invocation.status == 'PREPARED':
+                    invocation.status = 'FAILED'
+                    invocation.error_code = 'PRE_DISPATCH_DENIED'
+                    invocation.completed_at = datetime.now(UTC)
                 _fail_execution(db, workflow, task, execution, 'AUTHORIZATION_INVALID', False)
                 return None
             execution.status = 'RUNNING'
@@ -162,7 +170,8 @@ def finalize(factory: sessionmaker, execution_id: UUID, token: UUID, result: dic
             _fail_execution(db, workflow, task, execution, 'WORKFLOW_STATE_INVALID', False)
             return True
         if error is not None:
-            _fail_execution(db, workflow, task, execution, 'HANDLER_TIMEOUT' if is_retryable(error) else 'HANDLER_FAILED', is_retryable(error))
+            paid = task.task_type in AI_TASK_ROLES
+            _fail_execution(db, workflow, task, execution, 'AI_EXECUTION_FAILED' if paid else 'HANDLER_TIMEOUT' if is_retryable(error) else 'HANDLER_FAILED', False if paid else is_retryable(error))
             return True
         if not isinstance(result, dict) or result.get('status') not in {'COMPLETE', 'INCOMPLETE'} or not isinstance(result.get('missing'), list):
             _fail_execution(db, workflow, task, execution, 'OUTPUT_INVALID', False)
@@ -194,12 +203,18 @@ def recover_one(factory: sessionmaker) -> bool:
             execution.completed_at = datetime.now(UTC)
             execution.error_code = 'LEASE_EXPIRED'
             execution.error_message = 'Worker lease expired; a fresh Owner approval is required for any retry.'
+            invocation = db.scalar(select(AIInvocation).where(AIInvocation.execution_id == execution.id).with_for_update())
+            if invocation and invocation.status in {'PREPARED', 'DISPATCHED'}:
+                invocation.status = 'USAGE_UNKNOWN' if invocation.status == 'DISPATCHED' else 'FAILED'
+                invocation.error_code = 'LEASE_EXPIRED'
+                invocation.completed_at = execution.completed_at
+                db.add(AuditEvent(actor='ai-worker', action='ai_invocation.recovered', entity_type='ai_invocation', entity_id=invocation.id, detail={'status': invocation.status, 'reservation_retained': True}))
             db.add(AuditEvent(actor='internal-worker', action='workflow.execution_abandoned', entity_type='workflow_task', entity_id=task.id, detail={'execution_id': str(execution.id), 'error_code': 'LEASE_EXPIRED'}))
             if workflow.status == 'CANCELLED':
                 task.finished_at = execution.completed_at
                 _transition(db, workflow, task, 'CANCELLED', 'internal-worker', 'TASK_CANCELLED')
             else:
-                deadline = retry_after(execution.completed_at, task.retry_count, task.max_retries)
+                deadline = None if task.task_type in AI_TASK_ROLES else retry_after(execution.completed_at, task.retry_count, task.max_retries)
                 task.next_retry_at = deadline
                 if deadline is None:
                     task.finished_at = execution.completed_at
@@ -209,13 +224,22 @@ def recover_one(factory: sessionmaker) -> bool:
     return False
 
 
-def run_once(factory: sessionmaker) -> bool:
+def run_once(factory: sessionmaker, *, ai_transport=None) -> bool:
     recovered = recover_one(factory)
     activated = activate_one(factory)
     claimed = claim_one(factory)
     if claimed:
         execution_id, token, task_type, payload, timeout = claimed
-        result, error = _invoke(task_type, payload, timeout)
+        if task_type in AI_TASK_ROLES:
+            try:
+                response = dispatch_invocation(factory, execution_id, token, transport=ai_transport)
+                result, error = {'status': 'COMPLETE', 'missing': [], 'research': response.payload.model_dump(mode='json')}, None
+            except Exception:
+                # Provider errors are sanitized and billing outcomes have already
+                # been recorded; never auto-retry a potentially charged request.
+                result, error = None, AIExecutionDenied('AI task did not complete')
+        else:
+            result, error = _invoke(task_type, payload, timeout)
         finalize(factory, execution_id, token, result, error)
     return recovered or activated or claimed is not None
 

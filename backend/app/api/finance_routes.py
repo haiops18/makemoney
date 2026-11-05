@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.finance_schemas import BudgetAccountResponse, BudgetReservationCreate, BudgetReservationResponse, BudgetSettlement, BudgetSummaryResponse, CostRecordResponse, UsageRecordResponse
 from app.auth.dependencies import require_owner
-from app.db.models import AuditEvent, BudgetAccount, BudgetReservation, CostRecord, IdempotencyRecord, UsageRecord
+from app.db.models import AIInvocation, AuditEvent, BudgetAccount, BudgetReservation, CostRecord, IdempotencyRecord, UsageRecord
 from app.db.session import get_db
 from app.finance.service import budget_summary, create_reservation, current_account, expire_reservations
 
@@ -86,7 +86,10 @@ def _close_reservation(reservation_id: UUID, outcome: str, body: BudgetSettlemen
     if initial is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Budget reservation not found")
     account = db.scalar(select(BudgetAccount).where(BudgetAccount.id == initial.budget_account_id).with_for_update())
-    reservation = db.scalar(select(BudgetReservation).where(BudgetReservation.id == reservation_id).with_for_update())
+    reservation = db.scalar(select(BudgetReservation).where(BudgetReservation.id == reservation_id).with_for_update().execution_options(populate_existing=True))
+    invocation = db.scalar(select(AIInvocation).where(AIInvocation.reservation_id == reservation_id))
+    if invocation is not None and invocation.status in {'PREPARED', 'DISPATCHED'}:
+        raise HTTPException(status_code=409, detail='An active AI dispatch must finish or be recovered before reconciliation')
     expire_reservations(db, account.id, actor)
     if reservation.status not in {"ACTIVE", "EXPIRED"}:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Budget reservation is not open")
@@ -94,6 +97,15 @@ def _close_reservation(reservation_id: UUID, outcome: str, body: BudgetSettlemen
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Over-budget charges must be settled, not released")
     reservation.actual_amount = body.actual_amount
     reservation.status = outcome
+    if invocation is not None:
+        usage = db.get(UsageRecord, invocation.usage_record_id) if invocation.usage_record_id else None
+        if usage is not None:
+            usage.actual_cost = body.actual_amount
+        costs = db.scalars(select(CostRecord).where(CostRecord.task_id == invocation.execution_id, CostRecord.category == 'AI_INFERENCE'))
+        for cost in costs:
+            cost.amount = body.actual_amount
+            cost.status = 'CONFIRMED'
+            cost.source = 'OWNER_RECONCILIATION'
     db.flush()
     result = _store_response(db, actor, idempotency_key, path, payload, reservation, 200)
     db.add(AuditEvent(actor=actor, action=f"budget_reservation.{outcome.lower()}", entity_type="budget_reservation", entity_id=reservation.id, detail={"actual_amount": str(body.actual_amount), "reason": body.reason, "over_reserved": body.actual_amount > reservation.reserved_amount}))

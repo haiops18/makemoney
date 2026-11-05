@@ -1,5 +1,24 @@
 # Decisions
 
+## 2026-11-05 — invocation and billing uncertainty
+
+Use existing TaskExecution, action-level one-time approval, PostgreSQL reservation
+and worker leases. An AIInvocation records one dispatch before network access;
+DISPATCHED is never automatically sent again. No transaction remains open during
+the provider request. Revalidate consent, profile, credentials version, immutable
+prompt/price, action hash, dependencies, lease and budget before dispatch. Only an
+explicitly verified adapter endpoint is admitted. Network requests have a total
+deadline and no automatic retry/fallback.
+
+Persist validated provider outcome and usage independently of worker completion,
+so cancellation or an expired lease cannot erase billing evidence. Unknown usage
+retains reservation; token-rate cost is pending reconciliation, not confirmed
+billing. Observed cost above the estimate increases an open hold and may exhaust
+the budget. Owner reconciliation is denied during PREPARED/DISPATCHED and updates
+linked usage/cost records after a terminal or recovered outcome. These latest
+reconciliation edits still require tests. Do not modify historical prompt versions
+to enable execution. Owner paused implementation after this checkpoint.
+
 Research may precede an opportunity: extend the existing workflow to accept exactly
 one root, opportunity or research draft. Preserve old opportunity action payloads.
 The research validation task checks fields and source presence only, never evidence

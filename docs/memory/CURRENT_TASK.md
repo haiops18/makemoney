@@ -1,5 +1,62 @@
 # Current task
 
+## Owner-authorized push checkpoint — 2026-11-05 — IN_PROGRESS, implementation paused
+
+Owner requested committing/pushing all current work after the pause. This permits
+checkpoint publication to the existing feature branch/draft PR, not further feature
+implementation, merge or release. This entry supersedes older statements about
+uncommitted or untested changes below once the checkpoint commit is pushed.
+
+Branch: feat/step6-ai-research; draft PR: https://github.com/haiops18/makemoney/pull/6 .
+Checkpoint includes all local invocation, accounting, worker/API, migrations 0016/0017
+and pause/recovery memory changes. Re-ran `alembic upgrade head` and full backend
+pytest against the isolated PostgreSQL test database after the last reconciliation
+and idempotency changes: 100 passed, two dependency/configuration deprecation warnings.
+`git diff --check` passed; pattern-based secret review found no matching credential
+patterns in the 18 changed/new files. These checks are not full Step 6 acceptance.
+Prior frontend/E2E evidence: 22 component tests and three foundation runtime flows;
+no new frontend changes. CI SUCCESS for 2647d60 does not cover this new checkpoint;
+its GitHub CI must be checked separately after push. Do not claim full research,
+provider connection tests, AI concurrency/runtime, or release gates complete.
+
+Production prompt still denies inference; global consent defaults off and API/UI
+execution_available remains false. No real paid provider calls, no merge/tag/release.
+Feature implementation remains paused until Owner resumes it.
+
+## Owner pause — 2026-11-05 — STEP_6_STATUS = IN_PROGRESS
+
+Owner explicitly requested a pause and a detailed progress report. Do not resume
+implementation until instructed. Preserve the uncommitted working tree on
+`feat/step6-ai-research`; no reset/clean/checkout-discard. This entry supersedes
+older checkpoint descriptions where they differ.
+
+Pushed checkpoint: `2647d60326253ea555cb7789fa60acd02055018e`, draft PR #6
+https://github.com/haiops18/makemoney/pull/6 . GitHub push/PR checks were verified
+SUCCESS for backend, frontend, Docker, opportunity/workflow runtime and AI
+configuration runtime. This CI covers the pushed checkpoint only.
+
+Uncommitted: migrations 0016/0017, guarded one-shot OpenAI dispatch, atomic
+approval/reservation preparation, invocation/outcome persistence, usage accounting,
+AI task API/worker routing, recovery handling and finance reconciliation guards.
+Isolated PostgreSQL upgraded to 0017 and full backend suite passed 100 tests after
+worker integration. Subsequent edits to deterministic-task idempotency payload
+compatibility and finance reconciliation have NOT been rerun. The last frontend
+verification was 22 tests plus lint/typecheck/build; three real Compose E2E tests
+covered provider configuration, deterministic research workflow and global consent,
+not full AI research. No real provider request or expenditure occurred.
+
+Production research prompt 1.0.0 explicitly has provider_execution=false, so the
+new gate denies inference using that seed. Custom execution-enabled prompts exist
+only in tests. Global consent remains default off; execution_available=false is
+still reported by API/UI. New dispatch is verified with injected fake transport,
+not real credentials. No Step 6 release/tag exists.
+
+Resume: review uncommitted code; rerun tests after latest finance changes; test AI
+PostgreSQL concurrency/crash/cancellation; add immutable execution prompt contracts,
+verified provider adapters and connection tests; research/market/competitor/finance/
+risk/auditor/report stages, evidence permissions, Opportunity integration, usage UI;
+then full runtime/security/regression/CI/documentation and release gates.
+
 ## Step 6 active checkpoint — IN_PROGRESS — 2026-11-05
 
 Migration head is `20261105_0015`: research workflows use an existing Workflow

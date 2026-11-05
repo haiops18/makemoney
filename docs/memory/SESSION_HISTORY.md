@@ -1,5 +1,27 @@
 # Session history
 
+## 2026-11-05 — Owner requested pushing the paused checkpoint
+
+Inspected all 18 changed/new code and memory files, fetched origin and verified
+feature HEAD matched its remote before committing. Fresh isolated PostgreSQL
+migration check and complete backend regression: 100 passed after all latest
+finance/idempotency edits. Whitespace check and pattern-based secret review passed.
+Preparing a checkpoint commit/push on the existing feature branch/draft PR #6.
+No further feature work, production migration, paid call, merge, tag or release.
+Implementation remains paused at Owner request; Step 6 is IN_PROGRESS.
+
+## 2026-11-05 — execution checkpoint and explicit Owner pause
+
+Pushed 2647d60 to feat/step6-ai-research and opened draft PR #6; verified all push/PR
+checks SUCCESS. Implemented local migrations 0016 (invocations) and 0017 (durable
+outcomes), action-bound approval/reservation, one-shot OpenAI transport, accounting
+for known/unknown usage, worker routing/recovery and protected AI task API. Eight
+fake-transport scenarios verify direct/worker success, malformed output, timeout
+and overage, including no redispatch. Isolated PostgreSQL upgrade and full backend
+regression: 100 passed. Later finance/compatibility edits have not been retested.
+No real paid call or release. Owner explicitly paused work and requested a detailed
+status report; implementation is paused, Step 6 remains IN_PROGRESS.
+
 ## 2026-11-05 — research workflow and transport checkpoint
 
 Added migration 0015 and deterministic research draft validation in the existing

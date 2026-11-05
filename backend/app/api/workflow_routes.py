@@ -15,6 +15,7 @@ from app.db.models import ActionAuthorization, Agent, AIResearchRun, ApprovalReq
 from app.db.session import get_db
 from app.orchestration.gate import GateDenied, authorize_task, task_action
 from app.orchestration.state import TASK_TRANSITIONS, WORKFLOW_TRANSITIONS, validate_dependencies, validate_transition
+from app.ai_brain.execution import AI_TASK_ROLES, AIExecutionDenied, prepare_ai_action, queue_ai_execution
 
 router = APIRouter(prefix='/api/v1/workflows', dependencies=[Depends(require_owner)], tags=['workflows'])
 
@@ -163,14 +164,14 @@ def list_tasks(workflow_id: UUID, limit: int = Query(default=25, ge=1, le=100), 
 @router.post('/{workflow_id}/tasks', response_model=TaskResponse, status_code=201)
 def create_task(workflow_id: UUID, body: TaskCreate, response: Response, key: str = Header(alias='Idempotency-Key', min_length=1, max_length=255), actor: str = Depends(require_owner), db: Session = Depends(get_db)) -> TaskResponse:
     path = f'/api/v1/workflows/{workflow_id}/tasks'
-    payload = body.model_dump(mode='json')
+    payload = body.model_dump(mode='json', exclude={'ai_price_id', 'ai_prompt_version_id'} if body.task_type not in AI_TASK_ROLES else set())
     existing = _idempotent(db, actor, key, 'POST', path, payload, TaskResponse)
     if existing:
         return existing
     workflow = get_workflow(db, workflow_id, lock=True)
     if workflow.status != 'DRAFT':
         raise HTTPException(status_code=409, detail='Tasks may only be added to a draft workflow')
-    if (workflow.research_run_id is not None) != (body.task_type == 'VALIDATE_RESEARCH_DRAFT'):
+    if (workflow.research_run_id is not None) != (body.task_type == 'VALIDATE_RESEARCH_DRAFT' or body.task_type in AI_TASK_ROLES):
         raise HTTPException(status_code=422, detail='Handler is incompatible with this workflow root')
     if (db.scalar(select(func.count()).select_from(WorkflowTask).where(WorkflowTask.workflow_id == workflow_id)) or 0) >= 100:
         raise HTTPException(status_code=409, detail='A workflow may contain at most 100 tasks')
@@ -182,7 +183,8 @@ def create_task(workflow_id: UUID, body: TaskCreate, response: Response, key: st
     parents = list(db.scalars(select(WorkflowTask.id).where(WorkflowTask.workflow_id == workflow_id, WorkflowTask.id.in_(body.depends_on))))
     if len(parents) != len(body.depends_on):
         raise HTTPException(status_code=422, detail='Dependencies must belong to the same workflow')
-    task = WorkflowTask(workflow_id=workflow_id, input_json={}, **body.model_dump(exclude={'depends_on'}))
+    ai_input = {'ai_price_id': str(body.ai_price_id), 'ai_prompt_version_id': str(body.ai_prompt_version_id)} if body.task_type in AI_TASK_ROLES else {}
+    task = WorkflowTask(workflow_id=workflow_id, input_json=ai_input, **body.model_dump(exclude={'depends_on', 'ai_price_id', 'ai_prompt_version_id'}))
     db.add(task)
     db.flush()
     for parent in body.depends_on:
@@ -199,8 +201,10 @@ def create_task(workflow_id: UUID, body: TaskCreate, response: Response, key: st
 def approval_action(workflow_id: UUID, task_id: UUID, policy_id: UUID, db: Session = Depends(get_db)) -> dict:
     """Prepare the exact action for the existing Approval Center; grants no rights."""
     try:
-        action, digest = task_action(db, workflow_id, task_id, policy_id)
-    except GateDenied as exc:
+        task = db.get(WorkflowTask, task_id)
+        planner = prepare_ai_action if task and task.task_type in AI_TASK_ROLES else task_action
+        action, digest = planner(db, workflow_id, task_id, policy_id)
+    except (GateDenied, AIExecutionDenied) as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     return {'action': action, 'action_hash': digest}
 
@@ -397,6 +401,14 @@ def queue_task(workflow_id: UUID, task_id: UUID, body: TaskQueueRequest, respons
     authorization = db.scalar(select(ActionAuthorization).where(ActionAuthorization.approval_id == body.approval_id))
     if authorization is None:
         raise HTTPException(status_code=403, detail='Task approval authorization unavailable')
+    if task.task_type in AI_TASK_ROLES:
+        try:
+            execution = queue_ai_execution(db, workflow_id, task_id, body.policy_id, authorization.id, actor, key)
+        except AIExecutionDenied as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        result = TaskExecutionResponse.model_validate(execution).model_copy(update={'workflow_id': workflow_id, 'input_fields': sorted(execution.input_snapshot_json)})
+        _store_idempotency(db, actor, key, 'POST', path, payload, result, 201)
+        return _commit_or_conflict(db, actor, key, 'POST', path, payload, TaskExecutionResponse, response) or result
     try:
         handler_input = authorize_task(db, workflow_id, task_id, body.policy_id, authorization.id, actor)
     except GateDenied as exc:
