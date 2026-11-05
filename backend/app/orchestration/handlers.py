@@ -21,6 +21,13 @@ class EvidenceInput(BaseModel):
     verified_count: int = Field(ge=0, le=1000000)
 
 
+class ResearchDraftInput(BaseModel):
+    model_config = ConfigDict(extra='forbid', strict=True)
+    objective: str = Field(min_length=1, max_length=4000)
+    target_market: str | None = Field(default=None, max_length=200)
+    source_count: int = Field(ge=0, le=1000000)
+
+
 class ValidationResult(BaseModel):
     status: Literal['COMPLETE', 'INCOMPLETE']
     missing: list[str]
@@ -35,6 +42,13 @@ def dispatch(task_type: str, payload: dict) -> ValidationResult:
         if item.verified_count > item.evidence_count:
             raise ValueError('verified_count cannot exceed evidence_count')
         missing = [] if item.verified_count else ['verified_evidence']
+    elif task_type == 'VALIDATE_RESEARCH_DRAFT':
+        item = ResearchDraftInput.model_validate(payload)
+        missing = []
+        if not item.target_market or not item.target_market.strip():
+            missing.append('target_market')
+        if not item.source_count:
+            missing.append('owner_sources')
     else:
         raise ValueError('Task type is not an allowed internal handler')
     return ValidationResult(status='INCOMPLETE' if missing else 'COMPLETE', missing=missing)

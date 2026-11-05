@@ -1,5 +1,49 @@
 # Project status
 
+## Step 6 — implementation complete, release v29.0.0 verification in progress — 2026-11-05
+
+AI research pipeline, verified adapters, source verification, usage/reconciliation
+UI and promotion to opportunities are implemented and tested locally (backend 110
+on PostgreSQL, frontend 29). Release status is recorded in docs/releases/.
+Older paragraphs below are historical.
+
+## Latest checkpoint push — 2026-11-05 — Step 6 IN_PROGRESS, paused
+
+Owner authorized pushing all current code and memory to feat/step6-ai-research /
+draft PR #6. Latest full backend rerun after reconciliation edits: 100 passed;
+isolated PostgreSQL migration head 0017; diff whitespace and pattern-based secret
+review passed. Earlier CI PASS covers 2647d60 only; new checkpoint CI requires
+separate verification. Full Step 6 implementation and acceptance remain incomplete.
+This supersedes previous descriptions of the latest edits as untested.
+
+## Latest Step 6 — IN_PROGRESS; paused by Owner on 2026-11-05
+
+Pushed foundation commit 2647d60 has successful GitHub CI on draft PR #6. Local
+uncommitted invocation/worker/accounting work advanced to migration 0017 and 100
+backend tests passed on isolated PostgreSQL. Latest small reconciliation/idempotency
+edits are untested. Last frontend: 22 tests; E2E: three foundation/configuration
+flows. Full AI research, multi-provider execution, usage UI and release gates remain
+incomplete. No paid request, v29.0.0 tag or release. See CURRENT_TASK for recovery.
+Older checkpoint paragraphs below are historical.
+
+## Step 6 IN_PROGRESS — research draft checkpoint
+
+Provider/key and agent model configuration plus Owner research drafts and manual
+unverified sources are implemented. PostgreSQL 62 tests, frontend 20 tests and two
+isolated E2E flows passed. No live model execution is implemented or authorized.
+
+## Step 6 IN_PROGRESS — provider checkpoint
+
+Provider configuration API/UI and encrypted credential storage implemented; no
+provider calls or AI execution enabled. Fresh PostgreSQL migration/regression 57
+passed, frontend 17 tests/lint/typecheck/build passed. See CURRENT_TASK for gaps.
+
+## Step 6 IN_PROGRESS
+
+Baseline v28.0.0 verified; initial offline provider/output/prompt/pricing primitives
+and tests exist. No AI execution, provider configuration API or UI is enabled.
+See CURRENT_TASK for exact verification and remaining mandatory work.
+
 ## Step 5 COMPLETED — v28.0.0
 
 Verified GitHub release, annotated tag and main/tag/release CI PASS. Source commit

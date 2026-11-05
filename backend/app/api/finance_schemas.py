@@ -35,6 +35,13 @@ class BudgetReservationCreate(BaseModel):
     currency: Literal["USD"] = "USD"
     expires_at: datetime
 
+    @field_validator('reserved_amount', mode='before')
+    @classmethod
+    def no_float_money(cls, value):
+        if isinstance(value, float):
+            raise ValueError('Use a decimal string for money')
+        return value
+
     @field_validator("expires_at")
     @classmethod
     def future_expiry(cls, value: datetime) -> datetime:
@@ -48,6 +55,13 @@ class BudgetReservationCreate(BaseModel):
 class BudgetSettlement(BaseModel):
     actual_amount: Annotated[Decimal, Field(ge=0, max_digits=18, decimal_places=6)]
     reason: str = Field(min_length=1, max_length=500)
+
+    @field_validator('actual_amount', mode='before')
+    @classmethod
+    def no_float_money(cls, value):
+        if isinstance(value, float):
+            raise ValueError('Use a decimal string for money')
+        return value
 
 
 class BudgetReservationResponse(BaseModel):

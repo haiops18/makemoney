@@ -2,7 +2,9 @@ from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.ai_brain.execution import AI_TASK_ROLES
 
 
 class WorkflowCreate(BaseModel):
@@ -21,7 +23,8 @@ class WorkflowUpdate(BaseModel):
 class WorkflowResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
-    opportunity_id: UUID
+    opportunity_id: UUID | None
+    research_run_id: UUID | None = None
     name: str
     description: str | None
     status: str
@@ -48,12 +51,23 @@ class TaskCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     name: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=5000)
-    task_type: Literal['VALIDATE_OPPORTUNITY', 'VALIDATE_EVIDENCE']
+    task_type: Literal['VALIDATE_OPPORTUNITY', 'VALIDATE_EVIDENCE', 'VALIDATE_RESEARCH_DRAFT', 'AI_RESEARCH_PLAN', 'AI_MARKET_RESEARCH', 'AI_COMPETITOR_ANALYSIS', 'AI_OPPORTUNITY_GENERATION', 'AI_FINANCIAL_ANALYSIS', 'AI_RISK_REVIEW', 'AI_RESEARCH_REPORT']
     assigned_role: str = Field(min_length=1, max_length=100)
     priority: int = Field(default=0, ge=-100, le=100)
     max_retries: int = Field(default=0, ge=0, le=10)
     timeout_seconds: int = Field(default=30, ge=1, le=300)
     depends_on: list[UUID] = Field(default_factory=list, max_length=100)
+    ai_price_id: UUID | None = None
+    ai_prompt_version_id: UUID | None = None
+
+    @model_validator(mode='after')
+    def validate_ai_config(self):
+        if self.task_type in AI_TASK_ROLES:
+            if self.assigned_role != AI_TASK_ROLES[self.task_type] or self.max_retries != 0 or not self.ai_price_id or not self.ai_prompt_version_id:
+                raise ValueError('AI tasks need the allowed role, immutable prompt/price versions and zero automatic retries')
+        elif self.ai_price_id or self.ai_prompt_version_id:
+            raise ValueError('Deterministic tasks do not accept AI configuration')
+        return self
 
 
 class TaskResponse(BaseModel):

@@ -58,7 +58,7 @@ test('Owner approves a workflow and a separately approved task, then cancels the
   await expect(page.getByText('Owner validation · READY')).toBeVisible({ timeout: 20000 });
   await expect(page.getByText('Evidence validation · BLOCKED')).toBeVisible();
   const policyResponse = await request.get('/api/v1/policies', { headers: { Authorization: authorization } });
-  const policyId = (await policyResponse.json())[0].id as string;
+  const policyId = (await policyResponse.json()).find((item: { enabled: boolean; rules_json: { allowed_action_types: string[] } }) => item.enabled && item.rules_json.allowed_action_types.includes('INTERNAL_WORKFLOW')).id as string;
   const preparedResponse = await request.get(`/api/v1/workflows/${workflowId}/tasks/${childTaskId}/approval-action`, { params: { policy_id: policyId }, headers: { Authorization: authorization } });
   expect(preparedResponse.status()).toBe(200);
   const action = (await preparedResponse.json()).action;

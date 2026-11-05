@@ -1,5 +1,47 @@
 # Database schema
 
+Migration 0015 allows exactly one workflow root: existing opportunity or research
+draft. Existing data and action hashes are preserved; one research workflow per
+draft is enforced with a restricted FK and unique constraint.
+
+Migration 0014 adds a default-disabled singleton AI consent record and a separate
+AI policy requiring action-specific one-time Owner approval. External business
+execution remains disabled; no model execution is introduced by the migration.
+
+Migration 0012 adds prompt versions and a read-only seed. Migration 0013 permits
+settled actual costs above reservation, while released costs remain bounded by the
+reservation. This preserves actual charge history and does not increase spending limits.
+
+Migration 0010 constrains a single non-archived default provider; 0011 records
+immutable effective-dated USD model prices. Prices are Owner-entered assumptions,
+not verified provider bills or authorization to spend.
+
+Forward-only `20261104_0009` adds Owner research drafts and unverified source
+excerpts with UUIDs, FK, pagination indexes and cost/status checks; no provider usage
+or business transactions are written by these tables.
+
+Forward-only `20261104_0008` adds one AI configuration profile per existing agent,
+with restricted agent/provider FKs, numeric per-run USD limit and resource checks.
+
+## Step 6 migration 20261105_0018 — research stages
+
+- `ai_research_sources`: `verification_status` now `UNVERIFIED | VERIFIED | REJECTED`;
+  `verified_by`, `verified_at`, `verification_note`; check constraint ties
+  `verified_at` to a decided status.
+- `ai_research_runs.opportunity_id`: unique nullable FK to the promoted opportunity.
+- `ai_providers.last_checked_at`, `last_check_status`, `last_check_model_listed`.
+- Seeds new immutable prompt versions with `provider_execution=true`: `research`
+  2.0.0 and `market_research`, `competitor_analysis`, `opportunity_generation`,
+  `financial_analysis`, `risk_review`, `research_report` 1.0.0. Prompt 1.0.0 is
+  unchanged and still denies execution. Forward-only.
+
+## Step 6 provider configuration — IN_PROGRESS
+
+Forward-only migration `20261103_0007` adds `ai_providers` with UUID, kind check,
+unique name, ordered index, encrypted credential, and archive state. The database
+does not hold the Fernet master key. A fresh isolated PostgreSQL upgrade and
+concurrent idempotent create were tested. Other research/usage tables do not exist.
+
 ## Step 5 schema — RELEASED in v28.0.0
 
 `20261103_0005` adds workflows, tasks, dependency edges, execution attempts and

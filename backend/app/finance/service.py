@@ -38,13 +38,18 @@ def current_account(db: Session, *, lock: bool = False) -> BudgetAccount:
         return account
     settings = get_settings()
     account = BudgetAccount(name=MONTHLY_ACCOUNT_NAME, period_start=start, period_end=end, limit_amount=Decimal(str(settings.monthly_budget_usd)), reserve_amount=Decimal(str(settings.budget_reserve_usd)))
-    db.add(account)
     try:
-        db.flush()
+        # A concurrent request can create the same month. Roll back only the
+        # insert savepoint, not the outer transaction containing other controls.
+        with db.begin_nested():
+            db.add(account)
+            db.flush()
         return account
     except IntegrityError:
-        db.rollback()
-        return db.scalar(statement)
+        account = db.scalar(statement)
+        if account is None:
+            raise
+        return account
 
 
 def expire_reservations(db: Session, account_id, actor: str) -> None:
@@ -85,7 +90,14 @@ def budget_summary(db: Session, account: BudgetAccount) -> dict:
 
 
 def create_reservation(db: Session, task_id: UUID, idempotency_key: str, amount: Decimal, expires_at: datetime, actor: str) -> BudgetReservation:
+    if (not isinstance(amount, Decimal) or not amount.is_finite() or amount <= 0
+        or amount.as_tuple().exponent < -6 or amount >= Decimal('1000000000000')):
+        raise ValueError('Reservation amount must be a positive USD Decimal with at most six decimal places')
+    if expires_at.tzinfo is None or expires_at.utcoffset() is None or expires_at <= now_utc():
+        raise ValueError('Reservation expiry must be a future timezone-aware timestamp')
     account = current_account(db, lock=True)
+    if account.status != 'ACTIVE':
+        raise ValueError('Budget account is not active')
     expire_reservations(db, account.id, actor)
     if amount > budget_summary(db, account)["available_amount"]:
         raise ValueError("Insufficient available budget")

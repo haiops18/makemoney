@@ -1,5 +1,84 @@
 # Known issues
 
+## Step 6 v29.0.0 — current known limitations
+
+- No test or CI run contacts a real provider; adapters are verified against
+  documented response shapes with fake transports. The first real call on a new
+  model should be watched and reconciled by the Owner.
+- OPENAI_COMPATIBLE and custom base URLs can be stored but are denied for
+  execution/connection tests (no SSRF-safe allowlist for arbitrary hosts).
+- Token-based cost is an estimate; provider billing caps are not enforced by the
+  provider. Unknown outcomes keep their hold until Owner settle/release.
+- Source verification is an Owner attestation; the server never fetches or checks
+  a URL. Model output can still be wrong even when it cites verified sources.
+- Changing a source's verification after a task approval changes the action hash;
+  the approval then no longer matches and must be requested again (fail closed).
+- Anthropic structured output relies on prompt instructions plus strict server
+  validation (a fenced JSON block is tolerated); invalid output fails the stage.
+- AI_CREDENTIALS_KEY rotation is still manual; losing it makes stored keys unreadable.
+- Older entries below describe earlier checkpoints and are superseded where they differ.
+
+## Checkpoint push clarification — 2026-11-05
+
+The latest reconciliation/idempotency edits were included in a fresh 100-test
+backend PASS on isolated PostgreSQL at migration 0017. Prior notes saying they have
+not been rerun are historical. This does not add dedicated AI concurrency/crash,
+full AI research E2E or production provider verification; those gaps remain open.
+The feature remains paused and IN_PROGRESS. The new push needs its own GitHub CI;
+previous successful CI is not evidence for the new commit.
+
+## Latest Step 6 checkpoint — paused by Owner, 2026-11-05
+
+The new local execution path is partially integrated and tested with an injected
+fake provider transport. Seed prompt 1.0.0 still explicitly denies provider
+execution; API/UI execution availability remains false. Only the OpenAI wire/dispatch
+path is implemented locally; Gemini, Anthropic and compatible runtime adapters,
+connection tests, substantive research agents, source retrieval/verification,
+Opportunity generation and usage dashboard remain incomplete. Full AI concurrency,
+E2E, Docker and security acceptance have not passed. Latest finance reconciliation
+and compatibility edits need retesting. Unknown charges remain reserved; token-rate
+cost is not confirmed billing. No absolute provider billing cap is claimed.
+
+CI SUCCESS applies to pushed commit 2647d60, not uncommitted invocation code.
+Earlier statements that no invocation code exists are historical, not current.
+
+Research drafts can now have a deterministic validation workflow. AI invocation,
+billing-uncertainty accounting, live provider integration and substantive research
+agents remain incomplete. Transport primitives are unconnected and do not by
+themselves satisfy the execution-boundary or complete SSRF acceptance gates.
+
+Owner-confirmed overage can now be recorded and included in the hard stop; the old
+note that all over-reservation settlement is rejected is historical. No AI usage
+reconciliation workflow exists yet: unknown provider charges must remain reserved
+and are not automatically assumed zero.
+
+Research draft/source UI and API now exist, but no live research, source fetch,
+verified citation checking, agent execution, budget settlement of uncertain charges,
+connection test or complete Step 6 workflow exists. Offline OpenAI serialization is
+not a production adapter. Release v29.0.0 remains blocked by incomplete acceptance.
+
+Step 6 agent profile configuration API/UI now exist; older notes below that say
+model assignment is entirely absent are historical. Live execution, model capability
+verification, global AI enablement and provider connection testing remain absent.
+
+## Step 6 provider checkpoint — current
+
+Provider configuration and encrypted storage now exist; earlier notes saying they
+do not exist are superseded. Live providers, connection testing, model assignment,
+research execution and usage accounting remain unavailable. The master encryption
+key cannot yet be rotated automatically; loss of the key prevents decryption.
+Provider base URLs are stored only, not SSRF-cleared or fetched. Budget overage and
+unknown provider usage still require a safe reconciliation design before calls.
+
+## Step 6 — current open work
+
+Provider management, encrypted credentials, live integrations, research execution,
+source retrieval, usage accounting, workflow integration and frontend are not yet
+implemented. Existing budget settlement rejects actual amounts above reservations;
+provider overage and unknown usage require a safe reconciliation design before any
+paid call is permitted. Prompt separation alone is not a complete injection defense.
+No Step 6 migration, integration/E2E/security/runtime or release gate is verified.
+
 Step 5 release gates below are resolved by verified v28.0.0; limitations concerning
 zero-cost handlers, cooperative cancellation and moderate development findings remain.
 

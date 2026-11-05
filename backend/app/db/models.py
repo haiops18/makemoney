@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, JSON, Numeric, String, UniqueConstraint, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, JSON, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -19,6 +19,184 @@ class Agent(Base):
     policy_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class AIProvider(Base):
+    __tablename__ = 'ai_providers'
+    __table_args__ = (
+        CheckConstraint("kind IN ('OPENAI','GEMINI','ANTHROPIC','OPENAI_COMPATIBLE')", name='ck_ai_provider_kind'),
+        CheckConstraint('NOT (archived AND is_default)', name='ck_ai_provider_default_active'),
+        Index('ix_ai_providers_created_at', 'created_at', 'id'),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(150), unique=True, nullable=False)
+    kind: Mapped[str] = mapped_column(String(30), nullable=False)
+    base_url: Mapped[str | None] = mapped_column(String(2048))
+    default_model: Mapped[str] = mapped_column(String(200), nullable=False)
+    encrypted_api_key: Mapped[str | None] = mapped_column(Text())
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_check_status: Mapped[str | None] = mapped_column(String(30))
+    last_check_model_listed: Mapped[bool | None] = mapped_column(Boolean)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+Index('uq_ai_providers_single_default', AIProvider.is_default, unique=True,
+      postgresql_where=AIProvider.is_default.is_(True), sqlite_where=AIProvider.is_default.is_(True))
+
+
+class AIModelPrice(Base):
+    __tablename__ = 'ai_model_prices'
+    __table_args__ = (
+        UniqueConstraint('provider_id', 'model_id', 'version', name='uq_ai_model_price_version'),
+        CheckConstraint("currency = 'USD'", name='ck_ai_model_price_currency'),
+        CheckConstraint('input_per_million >= 0 AND output_per_million >= 0', name='ck_ai_model_price_nonnegative'),
+        CheckConstraint('expires_at IS NULL OR expires_at > effective_at', name='ck_ai_model_price_period'),
+        Index('ix_ai_model_prices_provider_model_effective', 'provider_id', 'model_id', 'effective_at'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    provider_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('ai_providers.id', ondelete='RESTRICT'), nullable=False)
+    model_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    version: Mapped[str] = mapped_column(String(100), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default='USD')
+    input_per_million: Mapped[Any] = mapped_column(Numeric(18, 6), nullable=False)
+    output_per_million: Mapped[Any] = mapped_column(Numeric(18, 6), nullable=False)
+    effective_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source_note: Mapped[str] = mapped_column(String(500), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class AIPromptVersion(Base):
+    __tablename__ = 'ai_prompt_versions'
+    __table_args__ = (UniqueConstraint('name', 'version', name='uq_ai_prompt_name_version'),)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    version: Mapped[str] = mapped_column(String(100), nullable=False)
+    purpose: Mapped[str] = mapped_column(String(500), nullable=False)
+    system_text: Mapped[str] = mapped_column(Text, nullable=False)
+    developer_text: Mapped[str] = mapped_column(Text, nullable=False)
+    input_schema_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    output_schema_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    constraints_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class AIExecutionControl(Base):
+    __tablename__ = 'ai_execution_controls'
+    __table_args__ = (
+        UniqueConstraint('name', name='uq_ai_execution_control_name'),
+        CheckConstraint("name = 'primary'", name='ck_ai_execution_control_singleton'),
+        CheckConstraint('version >= 1', name='ck_ai_execution_control_version'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(20), nullable=False, default='primary')
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class AIInvocation(Base):
+    __tablename__ = 'ai_invocations'
+    __table_args__ = (
+        UniqueConstraint('execution_id', name='uq_ai_invocation_execution'),
+        UniqueConstraint('reservation_id', name='uq_ai_invocation_reservation'),
+        UniqueConstraint('usage_record_id', name='uq_ai_invocation_usage'),
+        UniqueConstraint('provider_id', 'provider_request_id', name='uq_ai_invocation_provider_request'),
+        CheckConstraint("status IN ('PREPARED','DISPATCHED','SUCCEEDED','FAILED','USAGE_UNKNOWN')", name='ck_ai_invocation_status'),
+        CheckConstraint('input_tokens IS NULL OR input_tokens >= 0', name='ck_ai_invocation_input_tokens'),
+        CheckConstraint('output_tokens IS NULL OR output_tokens >= 0', name='ck_ai_invocation_output_tokens'),
+        CheckConstraint('estimated_cost >= 0 AND (calculated_cost IS NULL OR calculated_cost >= 0)', name='ck_ai_invocation_cost'),
+        Index('ix_ai_invocations_status_created', 'status', 'created_at'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    execution_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('task_executions.id', ondelete='RESTRICT'), nullable=False)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('ai_research_runs.id', ondelete='RESTRICT'), nullable=False)
+    provider_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('ai_providers.id', ondelete='RESTRICT'), nullable=False)
+    profile_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('ai_agent_profiles.id', ondelete='RESTRICT'), nullable=False)
+    prompt_version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('ai_prompt_versions.id', ondelete='RESTRICT'), nullable=False)
+    price_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('ai_model_prices.id', ondelete='RESTRICT'), nullable=False)
+    reservation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('budget_reservations.id', ondelete='RESTRICT'), nullable=False)
+    usage_record_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('usage_records.id', ondelete='RESTRICT'))
+    status: Mapped[str] = mapped_column(String(30), default='PREPARED', nullable=False)
+    model_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    agent_role: Mapped[str] = mapped_column(String(100), nullable=False)
+    request_snapshot_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    provider_request_id: Mapped[str | None] = mapped_column(String(200))
+    input_tokens: Mapped[int | None] = mapped_column(Integer)
+    output_tokens: Mapped[int | None] = mapped_column(Integer)
+    estimated_cost: Mapped[Any] = mapped_column(Numeric(18, 6), nullable=False)
+    calculated_cost: Mapped[Any | None] = mapped_column(Numeric(18, 6))
+    output_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    error_code: Mapped[str | None] = mapped_column(String(100))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class AIAgentProfile(Base):
+    __tablename__ = 'ai_agent_profiles'
+    __table_args__ = (
+        UniqueConstraint('agent_id', name='uq_ai_agent_profile_agent'),
+        CheckConstraint('max_output_tokens BETWEEN 1 AND 100000', name='ck_ai_profile_tokens'),
+        CheckConstraint('timeout_seconds BETWEEN 1 AND 300', name='ck_ai_profile_timeout'),
+        CheckConstraint('max_cost_usd > 0 AND max_cost_usd <= 45', name='ck_ai_profile_cost'),
+        CheckConstraint('temperature IS NULL OR (temperature >= 0 AND temperature <= 2)', name='ck_ai_profile_temperature'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    agent_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('agents.id', ondelete='RESTRICT'), nullable=False)
+    provider_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('ai_providers.id', ondelete='RESTRICT'), nullable=False)
+    model_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    max_output_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    temperature: Mapped[Any | None] = mapped_column(Numeric(3, 2))
+    timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_cost_usd: Mapped[Any] = mapped_column(Numeric(18, 6), nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class AIResearchRun(Base):
+    __tablename__ = 'ai_research_runs'
+    __table_args__ = (
+        CheckConstraint("status IN ('DRAFT')", name='ck_ai_research_run_status'),
+        CheckConstraint('max_cost_usd > 0 AND max_cost_usd <= 45', name='ck_ai_research_run_cost'),
+        Index('ix_ai_research_runs_created_at', 'created_at', 'id'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    objective: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str | None] = mapped_column(String(150))
+    target_market: Mapped[str | None] = mapped_column(String(200))
+    target_customers: Mapped[str | None] = mapped_column(String(500))
+    max_cost_usd: Mapped[Any] = mapped_column(Numeric(18, 6), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default='DRAFT', nullable=False)
+    opportunity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('opportunities.id', ondelete='RESTRICT'), unique=True)
+    created_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class AIResearchSource(Base):
+    __tablename__ = 'ai_research_sources'
+    __table_args__ = (
+        CheckConstraint("verification_status IN ('UNVERIFIED','VERIFIED','REJECTED')", name='ck_ai_research_source_verification'),
+        CheckConstraint("(verification_status = 'UNVERIFIED') = (verified_at IS NULL)", name='ck_ai_research_source_verifier'),
+        Index('ix_ai_research_sources_run_created', 'research_run_id', 'created_at', 'id'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('ai_research_runs.id', ondelete='RESTRICT'), nullable=False)
+    source_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    source_url: Mapped[str | None] = mapped_column(String(2048))
+    excerpt: Mapped[str] = mapped_column(Text, nullable=False)
+    verification_status: Mapped[str] = mapped_column(String(20), default='UNVERIFIED', nullable=False)
+    verified_by: Mapped[str | None] = mapped_column(String(100))
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    verification_note: Mapped[str | None] = mapped_column(String(1000))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class AuditEvent(Base):
@@ -148,7 +326,7 @@ class BudgetReservation(Base):
         UniqueConstraint("budget_account_id", "task_id", name="uq_budget_reservation_account_task"),
         UniqueConstraint("budget_account_id", "idempotency_key", name="uq_budget_reservation_account_key"),
         CheckConstraint("reserved_amount > 0", name="ck_budget_reservation_reserved"),
-        CheckConstraint("actual_amount IS NULL OR (actual_amount >= 0 AND actual_amount <= reserved_amount)", name="ck_budget_reservation_actual"),
+        CheckConstraint("actual_amount IS NULL OR (actual_amount >= 0 AND (status = 'SETTLED' OR actual_amount <= reserved_amount))", name="ck_budget_reservation_actual"),
         CheckConstraint("status IN ('ACTIVE', 'SETTLED', 'RELEASED', 'EXPIRED')", name="ck_budget_reservation_status"),
         Index("ix_budget_reservations_account_status_expires", "budget_account_id", "status", "expires_at"),
     )
@@ -329,11 +507,14 @@ class Workflow(Base):
     __table_args__ = (
         CheckConstraint("status IN ('DRAFT','PENDING_APPROVAL','APPROVED','QUEUED','RUNNING','PAUSED','COMPLETED','FAILED','CANCELLED')", name='ck_workflow_status'),
         CheckConstraint('version >= 1', name='ck_workflow_version'),
+        CheckConstraint('(opportunity_id IS NOT NULL AND research_run_id IS NULL) OR (opportunity_id IS NULL AND research_run_id IS NOT NULL)', name='ck_workflow_one_root'),
+        UniqueConstraint('research_run_id', name='uq_workflow_research_run'),
         Index('ix_workflow_status_created', 'status', 'created_at'),
         Index('ix_workflow_opportunity', 'opportunity_id'),
     )
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    opportunity_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('opportunities.id', ondelete='RESTRICT'), nullable=False)
+    opportunity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('opportunities.id', ondelete='RESTRICT'))
+    research_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('ai_research_runs.id', ondelete='RESTRICT'))
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(String(5000))
     status: Mapped[str] = mapped_column(String(30), nullable=False, default='DRAFT', server_default='DRAFT')

@@ -43,6 +43,22 @@ jobs:
           E2E_COMPOSE_PROJECT: step5-release
       - if: always()
         run: docker compose -p step5-release -f compose.step5-test.yml down
+      - name: Generate disposable test encryption key
+        run: |
+          step6_test_key=$(openssl rand -base64 32 | tr '+/' '-_')
+          echo "::add-mask::$step6_test_key"
+          echo "STEP6_TEST_KEY=$step6_test_key" >> "$GITHUB_ENV"
+      - run: docker compose -p step6-release -f compose.step6-test.yml up --build -d --wait
+      - run: docker compose -p step6-release -f compose.step6-test.yml stop worker
+      - run: docker compose -p step6-release -f compose.step6-test.yml exec -T backend timeout 120 python -m pytest -q -o faulthandler_timeout=30
+      - run: docker compose -p step6-release -f compose.step6-test.yml start worker
+      - run: npx playwright test e2e/ai-providers.spec.ts
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: http://127.0.0.1:18007
+          E2E_STEP6: '1'
+      - if: always()
+        run: docker compose -p step6-release -f compose.step6-test.yml down
       - run: |
           if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag

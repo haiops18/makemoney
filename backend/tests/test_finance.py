@@ -71,3 +71,19 @@ def test_budget_release_requires_explicit_actual_cost_and_is_audited(client, aut
     actions = [event["action"] for event in client.get("/api/v1/audit-events", headers=auth_headers).json()]
     assert "budget_reservation.created" in actions
     assert "budget_reservation.released" in actions
+
+
+def test_overage_settlement_records_actual_and_blocks_new_reservations(client, auth_headers):
+    created = client.post('/api/v1/budgets/reservations', headers=auth_headers | {'Idempotency-Key': 'overage-reserve'}, json=_reservation('2'))
+    reservation_id = created.json()['id']
+    body = {'actual_amount': '46.000000', 'reason': 'Owner verified provider charge'}
+    release = client.post(f'/api/v1/budgets/reservations/{reservation_id}/release', headers=auth_headers | {'Idempotency-Key': 'overage-release'}, json=body)
+    assert release.status_code == 409
+    headers = auth_headers | {'Idempotency-Key': 'overage-settle'}
+    settled = client.post(f'/api/v1/budgets/reservations/{reservation_id}/settle', headers=headers, json=body)
+    assert settled.status_code == 200 and Decimal(settled.json()['actual_amount']) == Decimal('46')
+    assert client.post(f'/api/v1/budgets/reservations/{reservation_id}/settle', headers=headers, json=body).json() == settled.json()
+    summary = client.get('/api/v1/budgets/current', headers=auth_headers).json()
+    assert Decimal(summary['committed_amount']) == Decimal('46') and summary['hard_stop'] is True
+    assert client.post('/api/v1/budgets/reservations', headers=auth_headers | {'Idempotency-Key': 'after-overage'}, json=_reservation('0.000001')).status_code == 409
+    assert client.post('/api/v1/budgets/reservations', headers=auth_headers | {'Idempotency-Key': 'float-money'}, json=_reservation(0.1)).status_code == 422

@@ -1,5 +1,79 @@
 # Decisions
 
+## 2026-11-05 — Step 6 completion decisions
+
+- Adapters are a closed registry keyed by provider kind with fixed official hosts;
+  the endpoint URL is part of the approved action hash and rechecked at dispatch.
+- Each stage has its own prompt family; new prompt versions are added by migration,
+  historical versions are never edited. The pipeline pins the newest
+  execution-enabled version and effective price at creation time.
+- Direct AI dependencies' validated outputs are passed as `prior_outputs` in the
+  untrusted user message and are bound into the action hash.
+- Source verification is a one-way Owner decision; rejected sources are excluded
+  from provider requests and from promoted evidence.
+- Promotion creates an unscored DRAFT opportunity (`data_origin=AI_RESEARCH`); AI
+  findings are not converted into evidence records.
+- Connection tests require global consent because they transmit the credential;
+  they list models only and never send a prompt.
+- `execution_available` now mirrors consent: it means "requestable", never "approved".
+
+## 2026-11-05 — invocation and billing uncertainty
+
+Use existing TaskExecution, action-level one-time approval, PostgreSQL reservation
+and worker leases. An AIInvocation records one dispatch before network access;
+DISPATCHED is never automatically sent again. No transaction remains open during
+the provider request. Revalidate consent, profile, credentials version, immutable
+prompt/price, action hash, dependencies, lease and budget before dispatch. Only an
+explicitly verified adapter endpoint is admitted. Network requests have a total
+deadline and no automatic retry/fallback.
+
+Persist validated provider outcome and usage independently of worker completion,
+so cancellation or an expired lease cannot erase billing evidence. Unknown usage
+retains reservation; token-rate cost is pending reconciliation, not confirmed
+billing. Observed cost above the estimate increases an open hold and may exhaust
+the budget. Owner reconciliation is denied during PREPARED/DISPATCHED and updates
+linked usage/cost records after a terminal or recovered outcome. These latest
+reconciliation edits still require tests. Do not modify historical prompt versions
+to enable execution. Owner paused implementation after this checkpoint.
+
+Research may precede an opportunity: extend the existing workflow to accept exactly
+one root, opportunity or research draft. Preserve old opportunity action payloads.
+The research validation task checks fields and source presence only, never evidence
+truth. HTTPS transport resolves every address, denies non-global destinations and
+pins one public IP while verifying TLS against the approved hostname; no redirects
+or automatic billing-sensitive retries. Transport alone does not authorize execution.
+
+Global AI consent is default-off and versioned. Enabling consumes a one-time Owner
+approval of the exact control version; disabling invalidates old enable approvals.
+Consent is not a per-task approval, budget reservation, or network permission.
+
+For verified provider overage, preserve the real actual settled charge even when it
+exceeds a reservation. Count it against the existing monthly budget and hard stop;
+this records a fact and grants no additional spend authority. Unknown final usage
+must keep its reservation until explicit reconciliation. A monthly account insert
+race uses a savepoint so it cannot discard authorization/audit in the outer transaction.
+
+The initial OpenAI Responses wire contract is pure offline code with no transport;
+it separates instructions, validates structured output and preserves usage on error.
+It does not authorize a request, guarantee factual accuracy or serve as an adapter.
+
+## Step 6 provider configuration
+
+Store authenticated ciphertext bound to a provider UUID, using a Fernet key from
+deployment secrets; do not return credentials or store them in audit/idempotency
+records. Archive rather than delete providers. A configuration enable flag has no
+authority to execute AI. URL syntax validation is not SSRF protection and must not
+be reused as network authorization. Provider connection tests remain disabled.
+
+## Step 6 initial safety decisions
+
+Model output is untrusted and must pass strict schemas and server-side source-ID
+checks; a source reference alone does not prove a factual claim. Prompt evidence is
+kept in the user input, not elevated to system/developer instructions. Configured
+prices use Decimal and effective versions; a ceiling is an estimate, not an absolute
+provider billing guarantee. Paid execution remains denied until a transaction-safe
+approval, reservation, unknown-usage reconciliation and execution boundary exist.
+
 ## Step 5 execution safety
 
 PostgreSQL owns the queue and execution leases. Each workflow and each task action
