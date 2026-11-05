@@ -11,7 +11,7 @@ from app.api.workflow_schemas import TaskCreate, TaskExecutionResponse, TaskQueu
 from app.approvals.service import consume_action_authorization, evaluate_policy
 from app.auth.dependencies import require_owner
 from app.core.action_hash import action_hash, canonical_action
-from app.db.models import ActionAuthorization, Agent, ApprovalRequest, AuditEvent, Opportunity, Policy, TaskDependency, TaskExecution, Workflow, WorkflowEvent, WorkflowTask
+from app.db.models import ActionAuthorization, Agent, AIResearchRun, ApprovalRequest, AuditEvent, Opportunity, Policy, TaskDependency, TaskExecution, Workflow, WorkflowEvent, WorkflowTask
 from app.db.session import get_db
 from app.orchestration.gate import GateDenied, authorize_task, task_action
 from app.orchestration.state import TASK_TRANSITIONS, WORKFLOW_TRANSITIONS, validate_dependencies, validate_transition
@@ -170,6 +170,8 @@ def create_task(workflow_id: UUID, body: TaskCreate, response: Response, key: st
     workflow = get_workflow(db, workflow_id, lock=True)
     if workflow.status != 'DRAFT':
         raise HTTPException(status_code=409, detail='Tasks may only be added to a draft workflow')
+    if (workflow.research_run_id is not None) != (body.task_type == 'VALIDATE_RESEARCH_DRAFT'):
+        raise HTTPException(status_code=422, detail='Handler is incompatible with this workflow root')
     if (db.scalar(select(func.count()).select_from(WorkflowTask).where(WorkflowTask.workflow_id == workflow_id)) or 0) >= 100:
         raise HTTPException(status_code=409, detail='A workflow may contain at most 100 tasks')
     if len(set(body.depends_on)) != len(body.depends_on):
@@ -219,8 +221,21 @@ def workflow_action(db: Session, workflow: Workflow, policy: Policy) -> tuple[di
                    'assigned_role': task.assigned_role, 'priority': task.priority, 'max_retries': task.max_retries,
                    'timeout_seconds': task.timeout_seconds, 'input': task.input_json,
                    'depends_on': sorted(str(dep) for dep in graph[task.id])} for task in tasks]}
+    if workflow.research_run_id is not None:
+        payload['research_run_id'] = str(workflow.research_run_id)
     action = canonical_action('INTERNAL_WORKFLOW', payload, 'workflow', workflow.id, policy.id, policy.version, 'ONCE')
     return payload, action_hash(action)
+
+
+def require_eligible_root(db: Session, workflow: Workflow) -> None:
+    if workflow.research_run_id is not None:
+        research = db.scalar(select(AIResearchRun).where(AIResearchRun.id == workflow.research_run_id).with_for_update())
+        if research is None or research.status != 'DRAFT':
+            raise HTTPException(status_code=409, detail='Research draft is not eligible')
+    else:
+        opportunity = db.scalar(select(Opportunity).where(Opportunity.id == workflow.opportunity_id).with_for_update())
+        if opportunity is None or opportunity.status in {'DISQUALIFIED', 'ARCHIVED'}:
+            raise HTTPException(status_code=409, detail='Opportunity is not eligible')
 
 
 def record_transition(db: Session, workflow: Workflow, target: str, actor: str) -> None:
@@ -244,9 +259,7 @@ def submit_workflow(workflow_id: UUID, body: WorkflowSubmit, response: Response,
     workflow = get_workflow(db, workflow_id, lock=True)
     if workflow.status != 'DRAFT':
         raise HTTPException(status_code=409, detail='Only a draft can be submitted')
-    opportunity = db.scalar(select(Opportunity).where(Opportunity.id == workflow.opportunity_id).with_for_update())
-    if opportunity is None or opportunity.status in {'DISQUALIFIED', 'ARCHIVED'}:
-        raise HTTPException(status_code=409, detail='Opportunity is not eligible')
+    require_eligible_root(db, workflow)
     policy = db.scalar(select(Policy).where(Policy.id == body.policy_id).with_for_update())
     allowed, reason = evaluate_policy(policy, 'INTERNAL_WORKFLOW')
     if not allowed or policy is None or policy.rules_json.get('external_execution') is not False:
@@ -282,9 +295,7 @@ def start_workflow(workflow_id: UUID, response: Response, key: str = Header(alia
     allowed, reason = evaluate_policy(policy, 'INTERNAL_WORKFLOW')
     if not allowed or policy is None or policy.rules_json.get('external_execution') is not False or approval is None:
         raise HTTPException(status_code=403, detail=reason)
-    opportunity = db.scalar(select(Opportunity).where(Opportunity.id == workflow.opportunity_id).with_for_update())
-    if opportunity is None or opportunity.status in {'DISQUALIFIED', 'ARCHIVED'}:
-        raise HTTPException(status_code=409, detail='Opportunity is not eligible')
+    require_eligible_root(db, workflow)
     _, digest = workflow_action(db, workflow, policy)
     authorization = db.scalar(select(ActionAuthorization).where(ActionAuthorization.approval_id == approval.id))
     if authorization is None or not consume_action_authorization(db, authorization.id, digest, actor):

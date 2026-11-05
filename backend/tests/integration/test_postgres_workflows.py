@@ -67,7 +67,7 @@ def test_concurrent_workflow_starts_consume_one_approval():
             path = '/api/v1/workflows/' + workflow['id']
             task = client.post(path + '/tasks', json={'name': 'Validate', 'task_type': 'VALIDATE_OPPORTUNITY', 'assigned_role': 'research'}, headers=headers('task'))
             assert task.status_code == 201, task.text
-            policy = client.get('/api/v1/policies', headers=auth).json()[0]
+            policy = next(item for item in client.get('/api/v1/policies', headers=auth).json() if item['enabled'] and 'INTERNAL_WORKFLOW' in item['rules_json']['allowed_action_types'])
             submission = client.post(path + '/submit', json={'policy_id': policy['id'], 'expires_at': (datetime.now(UTC) + timedelta(minutes=5)).isoformat()}, headers=headers('submit'))
             assert submission.status_code == 200, submission.text
             approval_id = submission.json()['approval_id']
@@ -124,7 +124,7 @@ def test_worker_claim_fencing_and_expired_lease_recovery(monkeypatch):
             task = client.post(path + '/tasks', json={'name': 'Validate', 'task_type': 'VALIDATE_OPPORTUNITY', 'assigned_role': 'research', 'max_retries': 2}, headers=headers('task'))
             assert task.status_code == 201, task.text
             task_id = task.json()['id']
-            policy_id = client.get('/api/v1/policies', headers=auth).json()[0]['id']
+            policy_id = next(item['id'] for item in client.get('/api/v1/policies', headers=auth).json() if item['enabled'] and 'INTERNAL_WORKFLOW' in item['rules_json']['allowed_action_types'])
             submitted = client.post(path + '/submit', json={'policy_id': policy_id, 'expires_at': (datetime.now(UTC) + timedelta(minutes=5)).isoformat()}, headers=headers('submit'))
             assert submitted.status_code == 200, submitted.text
             approval_id = submitted.json()['approval_id']

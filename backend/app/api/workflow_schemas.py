@@ -21,7 +21,8 @@ class WorkflowUpdate(BaseModel):
 class WorkflowResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
-    opportunity_id: UUID
+    opportunity_id: UUID | None
+    research_run_id: UUID | None = None
     name: str
     description: str | None
     status: str
@@ -48,7 +49,7 @@ class TaskCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     name: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=5000)
-    task_type: Literal['VALIDATE_OPPORTUNITY', 'VALIDATE_EVIDENCE']
+    task_type: Literal['VALIDATE_OPPORTUNITY', 'VALIDATE_EVIDENCE', 'VALIDATE_RESEARCH_DRAFT']
     assigned_role: str = Field(min_length=1, max_length=100)
     priority: int = Field(default=0, ge=-100, le=100)
     max_retries: int = Field(default=0, ge=0, le=10)

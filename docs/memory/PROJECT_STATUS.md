@@ -1,5 +1,23 @@
 # Project status
 
+## Step 6 IN_PROGRESS — research draft checkpoint
+
+Provider/key and agent model configuration plus Owner research drafts and manual
+unverified sources are implemented. PostgreSQL 62 tests, frontend 20 tests and two
+isolated E2E flows passed. No live model execution is implemented or authorized.
+
+## Step 6 IN_PROGRESS — provider checkpoint
+
+Provider configuration API/UI and encrypted credential storage implemented; no
+provider calls or AI execution enabled. Fresh PostgreSQL migration/regression 57
+passed, frontend 17 tests/lint/typecheck/build passed. See CURRENT_TASK for gaps.
+
+## Step 6 IN_PROGRESS
+
+Baseline v28.0.0 verified; initial offline provider/output/prompt/pricing primitives
+and tests exist. No AI execution, provider configuration API or UI is enabled.
+See CURRENT_TASK for exact verification and remaining mandatory work.
+
 ## Step 5 COMPLETED — v28.0.0
 
 Verified GitHub release, annotated tag and main/tag/release CI PASS. Source commit

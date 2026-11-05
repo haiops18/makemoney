@@ -1,5 +1,24 @@
 # AUTO MONEY AI
 
+## Step 6 provider configuration — IN_PROGRESS
+
+Owner-only provider configuration is being developed. The Settings screen can
+store and rotate a provider API key; the backend encrypts it with a Fernet key
+supplied by the deployment secret manager through `AI_CREDENTIALS_KEY`. No key
+is shipped with the repository. Without a valid key, storing a credential fails
+closed. Protect and back up this key independently: changing or losing it makes
+existing ciphertext inaccessible; automatic key rotation is not implemented.
+
+Provider configuration does not authorize or invoke a model. AI execution and
+connection testing are not implemented. In particular, a saved base URL has not
+been approved for network access: DNS, redirects and private address restrictions
+must be enforced at the eventual network boundary before any request is allowed.
+
+Owner may also create a research draft and add unverified excerpts. A separate,
+default-off global AI consent uses the existing Approval Center; even after consent,
+individual AI calls remain unavailable until their own policy, approval and budget
+controls are implemented. See `docs/memory/CURRENT_TASK.md` for current verification.
+
 ## Workflow orchestration — Step 5 RELEASED (v28.0.0)
 
 The Owner can build workflows from recorded opportunities, define dependencies,

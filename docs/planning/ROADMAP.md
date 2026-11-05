@@ -1,5 +1,9 @@
 # Roadmap
 
+Step 6 / AI Brain & Research Agents is IN_PROGRESS; provider configuration,
+research drafts and global-consent controls exist, while AI execution, research
+agents, usage accounting and release remain unfinished. Step 5 v28.0.0 is released.
+
 Step 5 COMPLETED in v28.0.0; next is Step 6 — AI Brain & Research Agents.
 Older Step 5 candidate checkpoints below are historical.
 

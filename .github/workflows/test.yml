@@ -76,4 +76,27 @@ jobs:
           E2E_COMPOSE_PROJECT: step5-ci
       - if: always()
         run: docker compose -p step5-ci -f compose.step5-test.yml down
+  ai-configuration-runtime:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - name: Generate disposable test encryption key
+        run: |
+          step6_test_key=$(openssl rand -base64 32 | tr '+/' '-_')
+          echo "::add-mask::$step6_test_key"
+          echo "STEP6_TEST_KEY=$step6_test_key" >> "$GITHUB_ENV"
+      - run: docker compose -p step6-ci -f compose.step6-test.yml up --build -d --wait
+      - run: docker compose -p step6-ci -f compose.step6-test.yml stop worker
+      - run: docker compose -p step6-ci -f compose.step6-test.yml exec -T backend timeout 120 python -m pytest -q -o faulthandler_timeout=30
+      - run: docker compose -p step6-ci -f compose.step6-test.yml start worker
+      - run: npm ci && npx playwright install --with-deps chromium && npx playwright test e2e/ai-providers.spec.ts
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: http://127.0.0.1:18007
+          E2E_STEP6: '1'
+      - if: always()
+        run: docker compose -p step6-ci -f compose.step6-test.yml down
 

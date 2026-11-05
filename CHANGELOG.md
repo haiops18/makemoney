@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — Step 6 AI Brain & Research
+
+- Added Owner-controlled provider/model configuration, encrypted credentials,
+  versioned USD prices and prompt catalog, plus research drafts and unverified
+  Owner-entered sources. No model calls or source fetching are available yet.
+- Added default-off global consent requiring exact one-time Owner approval;
+  consent does not authorize individual tasks or activate AI execution.
+- Preserved actual settled overages and hardened monthly budget-account creation
+  against transaction rollback on a concurrent insert. Release is IN_PROGRESS.
+
 ## v28.0.0 — Step 5 Workflow Orchestration — RELEASED
 
 - Added Owner-only workflows, ordered dependencies, immutable attempt/event history,

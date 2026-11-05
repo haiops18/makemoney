@@ -3,7 +3,7 @@ import json
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -21,6 +21,9 @@ def _hash(payload: dict) -> str:
 
 
 def _idempotent(db: Session, actor: str, key: str, path: str, payload: dict) -> BudgetReservationResponse | None:
+    if db.bind is not None and db.bind.dialect.name == 'postgresql':
+        lock_id = int.from_bytes(hashlib.sha256(f'{actor}:{key}'.encode()).digest()[:8], 'big', signed=True)
+        db.execute(text('SELECT pg_advisory_xact_lock(:lock_id)'), {'lock_id': lock_id})
     request_hash = _hash(payload)
     record = db.scalar(select(IdempotencyRecord).where(IdempotencyRecord.actor == actor, IdempotencyRecord.key == key))
     if record is None:
@@ -87,13 +90,13 @@ def _close_reservation(reservation_id: UUID, outcome: str, body: BudgetSettlemen
     expire_reservations(db, account.id, actor)
     if reservation.status not in {"ACTIVE", "EXPIRED"}:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Budget reservation is not open")
-    if body.actual_amount > reservation.reserved_amount:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Actual cost exceeds reserved budget")
+    if outcome == 'RELEASED' and body.actual_amount > reservation.reserved_amount:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Over-budget charges must be settled, not released")
     reservation.actual_amount = body.actual_amount
     reservation.status = outcome
     db.flush()
     result = _store_response(db, actor, idempotency_key, path, payload, reservation, 200)
-    db.add(AuditEvent(actor=actor, action=f"budget_reservation.{outcome.lower()}", entity_type="budget_reservation", entity_id=reservation.id, detail={"actual_amount": str(body.actual_amount), "reason": body.reason}))
+    db.add(AuditEvent(actor=actor, action=f"budget_reservation.{outcome.lower()}", entity_type="budget_reservation", entity_id=reservation.id, detail={"actual_amount": str(body.actual_amount), "reason": body.reason, "over_reserved": body.actual_amount > reservation.reserved_amount}))
     try:
         db.commit()
     except IntegrityError:

@@ -1,5 +1,125 @@
 # Current task
 
+## Step 6 active checkpoint — IN_PROGRESS — 2026-11-05
+
+Migration head is `20261105_0015`: research workflows use an existing Workflow
+with exactly one root (opportunity or research draft). A deterministic, zero-cost
+VALIDATE_RESEARCH_DRAFT task uses the same approval, dependency, lease and audit
+pipeline; it does not verify market sources or invoke AI. Old opportunity workflow
+action payloads are preserved. PostgreSQL backend regression passed 92 tests,
+including transport tests; frontend 22 tests, lint/typecheck/build passed. Three real
+Compose E2E flows passed: configuration/prices, research workflow task execution,
+and global consent. The pinned-HTTPS transport is not connected to API/worker and has not
+made a real provider request. Test CI jobs exist but have not yet run on GitHub.
+
+Remaining mandatory work: guarded per-action AI invocation and billing uncertainty
+accounting, live provider adapters and connection test, source-access permissions,
+research/market/competitor/financial/risk/auditor/report agents, Opportunity Engine
+integration and usage dashboard, comprehensive security/runtime/regression/CI and
+verified v29.0.0 release. No Step 6 completion or release may be claimed.
+
+## Step 6 AI consent checkpoint — IN_PROGRESS — 2026-11-05
+
+Migration 0014 adds a default-disabled global consent record and a distinct policy
+requiring one-time Owner approval for AI consent/inference. Enable uses an exact
+version-bound action hash; disable increments the version and invalidates old
+approvals. Consent does not grant action approval, budget, network permission or
+working inference: `execution_available` remains false. Workflow UI now chooses
+policies by allowed action, rather than assuming the first policy. PostgreSQL
+concurrency/regression passed 79 tests; frontend lint/typecheck/build and 21 tests
+passed. End-to-end consent and workflow regression on Compose are being verified.
+Live adapters, secure network gate, usage reconciliation and AI research execution
+remain unimplemented; no paid call or Step 6 release has occurred.
+
+## Step 6 budget safety checkpoint — IN_PROGRESS — 2026-11-05
+
+Migration 0012 stores a versioned, read-only research prompt. Migration 0013
+allows an Owner to settle a verified actual cost exceeding its reservation;
+the budget summary counts the actual amount and enforces the existing hard stop.
+Unknown usage remains reserved until explicitly reconciled; no inference exists.
+The monthly-account creation race now rolls back only a savepoint, preserving
+other work in the outer transaction. PostgreSQL concurrency and regression passed
+76 tests; frontend 20 tests and two Step 6 E2E flows passed at prior checkpoint.
+Live provider calls, execution boundary, research agents and release are pending.
+
+## Step 6 pricing checkpoint — IN_PROGRESS — 2026-11-04
+
+Migration 0010 adds an audited, single default provider, including PostgreSQL
+concurrent-selection verification. Migration 0011 adds immutable Owner-entered,
+effective-dated USD model prices with Decimal precision and audited API. Price
+settings UI is implemented; its final browser test is pending. Backend regression
+65 passed after migration 0011. Backend pip-audit found vulnerabilities in
+cryptography 47, so the dependency was upgraded to 50; repeat audit reported no
+known vulnerabilities. Paid AI execution and budget reconciliation remain absent.
+
+## Most recent Step 6 verification — IN_PROGRESS
+
+Two real Compose/Playwright tests passed with provider creation, Research Agent
+model assignment, key revocation, research draft and unverified source entry.
+The offline OpenAI contract rejects malformed, deeply nested and refused responses;
+its three focused tests passed without network. Full PostgreSQL backend regression
+was 62 passed before the last focused test; frontend lint/typecheck/build and 20
+tests passed. The mock contract is not an execution boundary or a live provider.
+Paid calls, protected budget accounting, live research, full E2E and release remain
+unimplemented. No tag/release may be created until all mandatory gates pass.
+
+## Step 6 research draft checkpoint — IN_PROGRESS — 2026-11-04
+
+Added forward migration `20261104_0009`, Owner-authenticated research draft and
+manual source APIs, and bilingual draft/source screen. Sources are UNVERIFIED and
+never fetched. Two isolated browser E2E tests passed: provider/key/agent setup and
+research draft/source entry. PostgreSQL migrations and 62 backend tests passed;
+frontend lint/typecheck/build and 20 tests passed. An offline OpenAI Responses
+request/response contract validates output and retains token usage on errors, but
+does not perform network calls or authorize paid execution. No live adapter,
+budget-bound AI execution, research agent, audit agent, financial AI or complete
+Step 6 E2E/CI/release exists. Continue those tasks before any completion claim.
+
+## Step 6 agent profile checkpoint — IN_PROGRESS — 2026-11-04
+
+Added forward migration `20261104_0008`, Owner-only idempotent agent profile API
+and Settings form for provider/model, output tokens, optional temperature, timeout,
+per-run USD limit and configuration state. Profiles use existing agent identities;
+configuration does not authorize inference. PostgreSQL upgrade 0007 → 0008 and
+58 backend tests passed; frontend lint/typecheck/build and 18 tests passed. A real
+isolated browser test of provider create/revoke passed before profile UI was added;
+its expanded agent assignment test is pending. No paid call has been made.
+Provider connection tests, live adapters, budget reconciliation, policy-authorized
+AI execution, research, usage dashboard, full E2E and release remain outstanding.
+
+## Step 6 provider checkpoint — IN_PROGRESS
+
+Migration `20261103_0007` adds provider metadata and encrypted credentials;
+Owner-only list/create/update/archive API uses idempotency and audit, with keys
+encrypted using `AI_CREDENTIALS_KEY`. Settings UI allows configuration, replacement
+and revocation. Enabling a provider is metadata only; paid execution is unavailable.
+Fresh PostgreSQL migration and regression: 57 passed, including concurrent create.
+Frontend lint/typecheck/build and 17 tests passed. No Step 6 E2E or release gates
+have passed yet. Saved URLs have no network security approval: enforce SSRF, DNS and
+redirect controls at a future execution boundary. Master-key rotation, agent model
+assignments, live provider adapters, usage accounting, research workflow and UI are
+still outstanding; no real provider request has been made. Prior checkpoint below
+describes earlier state and is superseded where it differs.
+
+## Step 6 — IN_PROGRESS — 2026-11-03
+
+Baseline `cf805c85aad850c1e74d60fa7eb289e0ebc7b9b9`, v28.0.0 verified;
+branch `feat/step6-ai-research`; target v29.0.0 was absent at preflight.
+Added isolated, unconnected research-output contracts, explicit mock provider,
+Decimal rate ceiling and versioned prompt envelope. Unknown source IDs and facts
+without verified source references are rejected. These checks do not prove that a
+source supports a claim or prevent prompt injection on their own. No production AI
+provider, API, persistence, secret management, research execution, UI or paid-call
+boundary is wired. Existing workflow gate still denies paid/external tasks.
+
+Fresh source regression against isolated PostgreSQL: 51 passed before the last
+prompt-only test addition; the 5 new AI contract tests passed separately in a
+network-disabled container. No real provider call or expenditure was made.
+Remaining: provider configuration/encryption, research persistence, policy/approval/
+budget revalidation and accounting for unknown billed usage, safe source access,
+workflow integration, UI, full E2E/security and release gates. Do not tag or mark
+COMPLETED until all acceptance checks pass.
+
 ## Step 5 COMPLETED — v28.0.0
 
 Verified release https://github.com/haiops18/makemoney/releases/tag/v28.0.0

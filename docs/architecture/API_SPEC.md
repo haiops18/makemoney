@@ -1,5 +1,43 @@
 # API specification — Sprint 2 Module 1
 
+`GET/POST /api/v1/ai/research/{id}/workflow` reads/creates a draft workflow with a
+zero-cost `VALIDATE_RESEARCH_DRAFT` task. The existing Workflow lifecycle and task
+approval API enforce execution. This validates fields, not market truth or AI output.
+
+Step 6 consent API: `GET /api/v1/ai/control`, `GET /enable-action`, and idempotent
+Owner-only `POST /enable` and `/disable`. The existing Approval Center approves a
+version-bound enable action. This is global consent only: each future inference must
+still independently pass policy, one-time approval and budget reservation; no AI
+execution path is currently available.
+
+Owner-authenticated `GET /api/v1/ai/prompts` lists versioned prompt records.
+Owner budget settlement can record a verified actual above a reservation; the
+actual counts against the hard stop. Release cannot record an overage. Neither
+endpoint grants permission for an AI request.
+
+Owner-only idempotent `POST /api/v1/ai/providers/{id}/default` selects one default;
+`GET/POST /api/v1/ai/providers/{id}/prices` lists/creates immutable price versions.
+Mutations are validated and audited. Selecting a provider or price cannot run AI.
+
+Step 6 adds Owner-only paginated `GET/POST /api/v1/ai/research`,
+`GET /{id}` and `GET/POST /{id}/sources`. Mutations are idempotent and audited.
+Only Owner-entered DRAFTs and UNVERIFIED excerpts are stored; URLs are not fetched,
+and no execution endpoint exists.
+
+`GET /api/v1/ai/agent-profiles` and idempotent Owner-only
+`PUT /api/v1/ai/agent-profiles/{agent_id}` configure provider/model and resource
+limits for an existing logical agent. Configuration is not authorization to run AI.
+
+## Step 6 provider configuration — IN_PROGRESS
+
+Owner-authenticated `GET/POST /api/v1/ai/providers`, `PATCH /api/v1/ai/providers/{id}`
+and `POST /api/v1/ai/providers/{id}/archive` store configuration only. Mutations
+require `Idempotency-Key`, use audit logging and never return the credential.
+Provider credentials are encrypted with a deployment-supplied `AI_CREDENTIALS_KEY`;
+missing or invalid keys fail closed. Enable refers to configuration only and does
+not enable model execution. There is no connection-test or inference endpoint.
+Saved URLs are not yet authorized or checked for safe network access.
+
 ## Step 5 workflow contract — RELEASED in v28.0.0
 
 All paths below are under `/api/v1/workflows`, require Owner authentication and

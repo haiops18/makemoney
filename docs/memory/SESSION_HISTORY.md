@@ -1,5 +1,64 @@
 # Session history
 
+## 2026-11-05 — research workflow and transport checkpoint
+
+Added migration 0015 and deterministic research draft validation in the existing
+workflow worker, preserving old action hashes. PostgreSQL regression 82 passed,
+frontend 22 tests passed, three real Compose E2E flows passed. Added pinned HTTPS
+transport and offline SSRF/redirect/retry tests; no provider request occurred.
+Paid inference, research agents and release remain outstanding.
+
+## 2026-11-05 — Step 6 AI consent
+
+Added migration 0014, separate approval-required AI policy, default-disabled global
+consent, action-hash-bound enable and version-invalidating disable. Patched existing
+workflow UI/tests to select policy by allowed action. PostgreSQL regression 79
+passed, including concurrent approval consumption; frontend 21 tests passed.
+Consent UI E2E and full execution gates remain pending. No inference enabled.
+
+## 2026-11-05 — Step 6 budget and prompt controls
+
+Added versioned prompt catalog migration 0012 and actual-overage settlement
+migration 0013. Monthly account insert conflicts now preserve outer transactions.
+PostgreSQL test covers the first-month race and verified overage hard stop; backend
+regression 76 passed. Unknown usage is not automatically settled or released.
+
+## 2026-11-04 — provider default and pricing
+
+Added single-default provider selection, versioned Owner price records and UI.
+Fresh PostgreSQL migration through 0010 passed concurrency tests; upgrade 0011 and
+backend regression passed 65 tests. Cryptography 47 had audit advisories; upgrading
+to 50 yielded a clean backend audit. No inference or provider connection was made.
+
+## 2026-11-04 — Step 6 research drafts
+
+Added migration 0009, Owner draft/source APIs and bilingual UI. Sources are never
+automatically fetched and remain UNVERIFIED. Two real isolated Compose/Playwright
+flows passed; PostgreSQL regression 62 and frontend 20 tests passed. Added offline
+OpenAI Responses wire validation only; no provider call or paid execution occurred.
+
+## 2026-11-04 — Step 6 agent profiles
+
+Added migration 0008, Owner API and Settings UI for per-agent model configuration.
+PostgreSQL regression 58 passed; frontend checks and 18 tests passed. Provider
+creation/revocation E2E passed against a real isolated backend before profile UI;
+expanded E2E is pending. Paid execution remains disabled.
+
+## 2026-11-03 — Step 6 provider configuration checkpoint
+
+Added provider table/migration 0007, encrypted Owner credential storage, audited
+idempotent configuration APIs and Settings UI. Fresh isolated PostgreSQL migration
+and 57 backend tests passed, including concurrent provider create. Frontend lint,
+typecheck, build and 17 tests passed. No connection tests or paid calls were made.
+
+## 2026-11-03 — Step 6 initial checkpoint
+
+Verified main cf805c85 and release v28.0.0; v29.0.0 absent. Created isolated feature
+branch and implemented offline output, prompt, mock provider and Decimal pricing
+primitives. Backend suite: 51 passed against isolated PostgreSQL before the final
+prompt test; 5 AI unit tests passed separately without network. No paid calls.
+Implementation and release remain IN_PROGRESS; see CURRENT_TASK.
+
 ## 2026-11-03 — Step 5 released
 
 PR #4 merged; v28.0.0 published at `bcd7a5cc29bc8e9e4bfc52cf38052c375dde2f22`.

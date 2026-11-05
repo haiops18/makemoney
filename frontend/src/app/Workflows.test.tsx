@@ -18,7 +18,7 @@ beforeEach(async () => {
     if (path.includes('/workflows/summary')) return ok({ total: 1, counts: { DRAFT: 1 }, total_tasks: 0, task_success_rate: null });
     if (path.includes('/opportunities?')) return ok({ items: [{ id: oppId, title: 'Real opportunity', status: 'DRAFT' }], total: 1 });
     if (path.endsWith('/agents')) return ok([{ role: 'research', enabled: true }]);
-    if (path.endsWith('/policies')) return ok([{ id: policyId, name: 'Owner policy', enabled: true }]);
+    if (path.endsWith('/policies')) return ok([{ id: '00000000-0000-4000-8000-000000000004', name: 'AI policy', enabled: true, rules_json: { allowed_action_types: ['AI_CONTROL_ENABLE'] } }, { id: policyId, name: 'Owner policy', enabled: true, rules_json: { allowed_action_types: ['INTERNAL_WORKFLOW'] } }]);
     if (path.endsWith('/approvals')) return ok({ items: [] });
     if (path.includes('/tasks?') || path.includes('/events?') || path.includes('/executions?') || path.includes('/recent-executions?')) return ok([]);
     if (path.endsWith('/submit') && init?.method === 'POST') return ok({ workflow: { ...item, status: 'PENDING_APPROVAL' }, approval_id: policyId, action_hash: 'hash' });

@@ -1,5 +1,42 @@
 # Known issues
 
+Research drafts can now have a deterministic validation workflow. AI invocation,
+billing-uncertainty accounting, live provider integration and substantive research
+agents remain incomplete. Transport primitives are unconnected and do not by
+themselves satisfy the execution-boundary or complete SSRF acceptance gates.
+
+Owner-confirmed overage can now be recorded and included in the hard stop; the old
+note that all over-reservation settlement is rejected is historical. No AI usage
+reconciliation workflow exists yet: unknown provider charges must remain reserved
+and are not automatically assumed zero.
+
+Research draft/source UI and API now exist, but no live research, source fetch,
+verified citation checking, agent execution, budget settlement of uncertain charges,
+connection test or complete Step 6 workflow exists. Offline OpenAI serialization is
+not a production adapter. Release v29.0.0 remains blocked by incomplete acceptance.
+
+Step 6 agent profile configuration API/UI now exist; older notes below that say
+model assignment is entirely absent are historical. Live execution, model capability
+verification, global AI enablement and provider connection testing remain absent.
+
+## Step 6 provider checkpoint — current
+
+Provider configuration and encrypted storage now exist; earlier notes saying they
+do not exist are superseded. Live providers, connection testing, model assignment,
+research execution and usage accounting remain unavailable. The master encryption
+key cannot yet be rotated automatically; loss of the key prevents decryption.
+Provider base URLs are stored only, not SSRF-cleared or fetched. Budget overage and
+unknown provider usage still require a safe reconciliation design before calls.
+
+## Step 6 — current open work
+
+Provider management, encrypted credentials, live integrations, research execution,
+source retrieval, usage accounting, workflow integration and frontend are not yet
+implemented. Existing budget settlement rejects actual amounts above reservations;
+provider overage and unknown usage require a safe reconciliation design before any
+paid call is permitted. Prompt separation alone is not a complete injection defense.
+No Step 6 migration, integration/E2E/security/runtime or release gate is verified.
+
 Step 5 release gates below are resolved by verified v28.0.0; limitations concerning
 zero-cost handlers, cooperative cancellation and moderate development findings remain.
 
