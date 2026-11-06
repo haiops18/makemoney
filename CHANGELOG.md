@@ -1,10 +1,5 @@
 # Changelog
 
-<<<<<<< HEAD
-## v29.0.0 — Step 6 AI Brain & Research Agents — RELEASED
-
-- Release: https://github.com/haiops18/makemoney/releases/tag/v29.0.0
-=======
 ## v29.1.0 — Owner sign-in screen and AI stage approval fix
 
 - Fixed: requesting approval for an AI research stage on the Workflow page used the
@@ -20,8 +15,9 @@
 - Default session lifetime is 12 hours (`SESSION_TTL_MINUTES=720`).
 - Added the Vietnamese Owner guide `docs/USER_GUIDE.md`.
 
-## v29.0.0 — Step 6 AI Brain & Research Agents
->>>>>>> origin/main
+## v29.0.0 — Step 6 AI Brain & Research Agents — RELEASED
+
+- Release: https://github.com/haiops18/makemoney/releases/tag/v29.0.0
 
 - Seven-stage AI research pipeline (plan, market, competitors, opportunity,
   financial, risk, report) on the existing workflow, approval, budget-reservation
