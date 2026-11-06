@@ -53,9 +53,8 @@ def task_action(db: Session, workflow_id: UUID, task_id: UUID, policy_id: UUID) 
     return action, action_hash(action)
 
 
-def authorize_task(db: Session, workflow_id: UUID, task_id: UUID, policy_id: UUID, authorization_id: UUID, actor: str) -> dict:
-    if actor != 'owner':
-        raise GateDenied('Owner authorization required')
+def runnable_task_action(db: Session, workflow_id: UUID, task_id: UUID, policy_id: UUID) -> tuple[dict, str]:
+    """The task action, verified runnable now (workflow RUNNING, task READY, dependencies done)."""
     action, expected_hash = task_action(db, workflow_id, task_id, policy_id)
     workflow = db.get(Workflow, workflow_id)
     task = db.get(WorkflowTask, task_id)
@@ -64,6 +63,13 @@ def authorize_task(db: Session, workflow_id: UUID, task_id: UUID, policy_id: UUI
     unfinished = db.scalar(select(func.count()).select_from(TaskDependency).join(WorkflowTask, WorkflowTask.id == TaskDependency.depends_on_task_id).where(TaskDependency.task_id == task_id, WorkflowTask.status != 'SUCCEEDED')) or 0
     if unfinished:
         raise GateDenied('Dependencies are not complete')
+    return action, expected_hash
+
+
+def authorize_task(db: Session, workflow_id: UUID, task_id: UUID, policy_id: UUID, authorization_id: UUID, actor: str) -> dict:
+    if actor != 'owner':
+        raise GateDenied('Owner authorization required')
+    action, expected_hash = runnable_task_action(db, workflow_id, task_id, policy_id)
     # Only pure, fixed-cost-zero handlers above are allowed. No paid task
     # is admitted here; adding one requires an explicit reservation gate first.
     if not consume_action_authorization(db, authorization_id, expected_hash, actor):

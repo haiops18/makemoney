@@ -1,5 +1,10 @@
 # Project status
 
+## v29.2.0 — one-approval workflow auto-run — 2026-11-06
+
+Research workflows can run all stages on one Owner approval (see CHANGELOG). Per-task
+approval remains. Target version v29.2.0 (MINOR enhancement).
+
 ## v29.1.0 — sign-in screen and AI stage approval fix — 2026-11-06
 
 v29.0.0 is released and deployed. v29.1.0 adds the full-screen sign-in (remember me,

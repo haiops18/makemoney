@@ -1,5 +1,14 @@
 # Session history
 
+## 2026-11-06 — v29.2.0 workflow auto-run
+
+Owner's workflow was RUNNING but its first task waited for a pending per-task
+approval, and the research draft had 0 sources (the validation step would fail).
+Owner asked for one shared approval that then runs the workflow by itself.
+Implemented workflow auto-run (backend grant, worker auto-queue, UI panel), unit and
+component tests, and PostgreSQL integration tests (full pipeline on one approval,
+plan change stops, missing source, Owner stop) in an isolated compose project.
+
 ## 2026-11-06 — v29.1.0 sign-in and AI stage approval
 
 Owner asked for a usage guide, a fix for running AI stages from the UI and a new

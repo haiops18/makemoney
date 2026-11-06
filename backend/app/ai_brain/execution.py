@@ -141,15 +141,20 @@ def prepare_ai_action(db: Session, workflow_id: UUID, task_id: UUID, policy_id: 
     return action, action_hash(action)
 
 
-def queue_ai_execution(db: Session, workflow_id: UUID, task_id: UUID, policy_id: UUID, authorization_id: UUID, actor: str, idempotency_key: str) -> TaskExecution:
+def queue_ai_execution(db: Session, workflow_id: UUID, task_id: UUID, policy_id: UUID, authorization_id: UUID | None, actor: str, idempotency_key: str,
+                       *, auto_run_id: UUID | None = None) -> TaskExecution:
     """Atomically consume one action approval and reserve one execution attempt.
 
+    With ``auto_run_id`` the caller has already verified an ACTIVE workflow auto-run
+    whose Owner-approved plan still matches; no per-task approval is consumed.
     Caller owns the transaction and must commit or roll back this operation as a
     whole. No provider is contacted here; the worker dispatches the PREPARED
     invocation only after claiming it with a fresh lease and rechecking controls.
     """
-    if actor != 'owner':
+    if auto_run_id is None and actor != 'owner':
         raise AIExecutionDenied('Owner authorization is required')
+    if (auto_run_id is None) == (authorization_id is None):
+        raise AIExecutionDenied('Exactly one authorization source is required')
     action, digest = prepare_ai_action(db, workflow_id, task_id, policy_id)
     payload = action['action_payload']
     workflow = db.get(Workflow, workflow_id)
@@ -165,7 +170,7 @@ def queue_ai_execution(db: Session, workflow_id: UUID, task_id: UUID, policy_id:
     estimate = Decimal(payload['cost_estimate_usd'])
     if committed + estimate > Decimal(research.max_cost_usd):
         raise AIExecutionDenied('Research run cost limit is exhausted')
-    if not consume_action_authorization(db, authorization_id, digest, actor):
+    if auto_run_id is None and not consume_action_authorization(db, authorization_id, digest, actor):
         raise AIExecutionDenied('AI action approval is missing, expired, consumed or mismatched')
     execution_id = uuid4()
     try:
@@ -175,7 +180,7 @@ def queue_ai_execution(db: Session, workflow_id: UUID, task_id: UUID, policy_id:
         raise AIExecutionDenied(str(error)) from None
     attempt = (db.scalar(select(func.max(TaskExecution.attempt_number)).where(TaskExecution.task_id == task.id)) or 0) + 1
     execution = TaskExecution(id=execution_id, task_id=task.id, attempt_number=attempt, status='QUEUED', idempotency_key=idempotency_key,
-                              policy_id=policy_id, authorization_id=authorization_id, action_hash=digest, input_snapshot_json=payload)
+                              policy_id=policy_id, authorization_id=authorization_id, auto_run_id=auto_run_id, action_hash=digest, input_snapshot_json=payload)
     db.add(execution)
     db.flush()
     invocation = AIInvocation(execution_id=execution.id, research_run_id=research.id, provider_id=UUID(payload['provider_id']),
@@ -216,12 +221,19 @@ def dispatch_invocation(factory, execution_id: UUID, lease_token: UUID, *, trans
             or invocation is None or invocation.status != 'PREPARED' or execution.action_hash != digest
             or execution.input_snapshot_json != action['action_payload']):
             raise AIExecutionDenied('AI execution state, lease or snapshot is invalid')
-        authorization = db.scalar(select(ActionAuthorization).where(ActionAuthorization.id == execution.authorization_id).with_for_update())
-        approval = db.get(ApprovalRequest, authorization.approval_id) if authorization else None
-        if (authorization is None or approval is None or authorization.status != 'CONSUMED' or approval.status != 'CONSUMED'
-            or authorization.action_hash != digest or approval.action_hash != digest
-            or is_expired(authorization.expires_at) or is_expired(approval.expires_at)):
-            raise AIExecutionDenied('AI execution authorization is invalid')
+        if execution.auto_run_id is not None:
+            from app.orchestration.auto_run import AutoRunDenied, verify_auto_run
+            try:
+                verify_auto_run(db, execution.auto_run_id, workflow, in_flight=True)
+            except AutoRunDenied:
+                raise AIExecutionDenied('AI execution authorization is invalid') from None
+        else:
+            authorization = db.scalar(select(ActionAuthorization).where(ActionAuthorization.id == execution.authorization_id).with_for_update())
+            approval = db.get(ApprovalRequest, authorization.approval_id) if authorization else None
+            if (authorization is None or approval is None or authorization.status != 'CONSUMED' or approval.status != 'CONSUMED'
+                or authorization.action_hash != digest or approval.action_hash != digest
+                or is_expired(authorization.expires_at) or is_expired(approval.expires_at)):
+                raise AIExecutionDenied('AI execution authorization is invalid')
         unfinished = db.scalar(select(func.count()).select_from(TaskDependency).join(WorkflowTask, WorkflowTask.id == TaskDependency.depends_on_task_id).where(TaskDependency.task_id == task.id, WorkflowTask.status != 'SUCCEEDED')) or 0
         if unfinished:
             raise AIExecutionDenied('AI dependencies are incomplete')

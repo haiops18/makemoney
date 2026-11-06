@@ -7,12 +7,13 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.opportunity_routes import _commit_or_conflict, _idempotent, _store_idempotency
-from app.api.workflow_schemas import TaskCreate, TaskExecutionResponse, TaskQueueRequest, TaskResponse, WorkflowCreate, WorkflowEventResponse, WorkflowList, WorkflowResponse, WorkflowSubmit, WorkflowSubmission, WorkflowUpdate
+from app.api.workflow_schemas import AutoRunRequest, AutoRunResponse, TaskCreate, TaskExecutionResponse, TaskQueueRequest, TaskResponse, WorkflowCreate, WorkflowEventResponse, WorkflowList, WorkflowResponse, WorkflowSubmit, WorkflowSubmission, WorkflowUpdate
 from app.approvals.service import consume_action_authorization, evaluate_policy
 from app.auth.dependencies import require_owner
 from app.core.action_hash import action_hash, canonical_action
-from app.db.models import ActionAuthorization, Agent, AIResearchRun, ApprovalRequest, AuditEvent, Opportunity, Policy, TaskDependency, TaskExecution, Workflow, WorkflowEvent, WorkflowTask
+from app.db.models import ActionAuthorization, Agent, AIResearchRun, ApprovalRequest, AuditEvent, Opportunity, Policy, TaskDependency, TaskExecution, Workflow, WorkflowAutoRun, WorkflowEvent, WorkflowTask
 from app.db.session import get_db
+from app.orchestration import auto_run
 from app.orchestration.gate import GateDenied, authorize_task, task_action
 from app.orchestration.state import TASK_TRANSITIONS, WORKFLOW_TRANSITIONS, validate_dependencies, validate_transition
 from app.ai_brain.execution import AI_TASK_ROLES, AIExecutionDenied, prepare_ai_action, queue_ai_execution
@@ -207,6 +208,61 @@ def approval_action(workflow_id: UUID, task_id: UUID, policy_id: UUID, db: Sessi
     except (GateDenied, AIExecutionDenied) as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     return {'action': action, 'action_hash': digest}
+
+
+@router.get('/{workflow_id}/auto-run-action')
+def auto_run_action(workflow_id: UUID, ai_policy_id: UUID, internal_policy_id: UUID, db: Session = Depends(get_db)) -> dict:
+    """Prepare the one plan approval that lets the worker run every task in order; grants no rights."""
+    workflow = get_workflow(db, workflow_id)
+    try:
+        action, digest = auto_run.prepare(db, workflow, ai_policy_id, internal_policy_id)
+    except GateDenied as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    payload = action['action_payload']
+    return {'action': action, 'action_hash': digest, 'summary': {
+        'task_count': len(payload['tasks']), 'ai_task_count': sum(1 for task in payload['tasks'] if task['task_type'] in AI_TASK_ROLES),
+        'max_cost_usd': payload['max_cost_usd'], 'source_count': len(payload['sources']),
+        'models': sorted({profile['model_id'] for profile in payload['profiles'].values()})}}
+
+
+@router.get('/{workflow_id}/auto-run', response_model=AutoRunResponse | None)
+def get_auto_run(workflow_id: UUID, db: Session = Depends(get_db)) -> WorkflowAutoRun | None:
+    get_workflow(db, workflow_id)
+    return db.scalar(select(WorkflowAutoRun).where(WorkflowAutoRun.workflow_id == workflow_id).order_by(WorkflowAutoRun.created_at.desc(), WorkflowAutoRun.id.desc()).limit(1))
+
+
+@router.post('/{workflow_id}/auto-run', response_model=AutoRunResponse, status_code=201)
+def start_auto_run(workflow_id: UUID, body: AutoRunRequest, response: Response, key: str = Header(alias='Idempotency-Key', min_length=1, max_length=255), actor: str = Depends(require_owner), db: Session = Depends(get_db)) -> AutoRunResponse:
+    path, payload = f'/api/v1/workflows/{workflow_id}/auto-run', body.model_dump(mode='json')
+    existing = _idempotent(db, actor, key, 'POST', path, payload, AutoRunResponse)
+    if existing:
+        return existing
+    workflow = get_workflow(db, workflow_id, lock=True)
+    try:
+        run = auto_run.activate(db, workflow, body.ai_policy_id, body.internal_policy_id, body.approval_id, actor)
+    except GateDenied as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    result = AutoRunResponse.model_validate(run)
+    _store_idempotency(db, actor, key, 'POST', path, payload, result, 201)
+    return _commit_or_conflict(db, actor, key, 'POST', path, payload, AutoRunResponse, response) or result
+
+
+@router.post('/{workflow_id}/auto-run/stop', response_model=AutoRunResponse)
+def stop_auto_run(workflow_id: UUID, response: Response, key: str = Header(alias='Idempotency-Key', min_length=1, max_length=255), actor: str = Depends(require_owner), db: Session = Depends(get_db)) -> AutoRunResponse:
+    """Stop queuing further tasks. A task already queued or running still finishes."""
+    path, payload = f'/api/v1/workflows/{workflow_id}/auto-run/stop', {}
+    existing = _idempotent(db, actor, key, 'POST', path, payload, AutoRunResponse)
+    if existing:
+        return existing
+    get_workflow(db, workflow_id, lock=True)
+    run = db.scalar(select(WorkflowAutoRun).where(WorkflowAutoRun.workflow_id == workflow_id, WorkflowAutoRun.status == 'ACTIVE').with_for_update())
+    if run is None:
+        raise HTTPException(status_code=409, detail='Auto-run is not active')
+    auto_run.end(db, run, 'STOPPED', auto_run.OWNER_STOP_REASON, actor)
+    db.flush()
+    result = AutoRunResponse.model_validate(run)
+    _store_idempotency(db, actor, key, 'POST', path, payload, result, 200)
+    return _commit_or_conflict(db, actor, key, 'POST', path, payload, AutoRunResponse, response) or result
 
 
 def workflow_action(db: Session, workflow: Workflow, policy: Policy) -> tuple[dict, str]:

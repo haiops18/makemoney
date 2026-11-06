@@ -142,3 +142,24 @@ class TaskQueueRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
     policy_id: UUID
     approval_id: UUID
+
+
+class AutoRunRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    ai_policy_id: UUID
+    internal_policy_id: UUID
+    approval_id: UUID
+
+
+class AutoRunResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    workflow_id: UUID
+    workflow_version: int
+    approval_id: UUID
+    plan_hash: str
+    status: str
+    stop_reason: str | None
+    expires_at: datetime
+    created_at: datetime
+    ended_at: datetime | None

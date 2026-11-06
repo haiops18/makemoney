@@ -1,4 +1,4 @@
-# Hướng dẫn sử dụng AUTO MONEY AI (v29.1.0)
+# Hướng dẫn sử dụng AUTO MONEY AI (v29.2.0)
 
 Tài liệu dành cho Owner (người vận hành hệ thống). Hướng dẫn đi từ lúc đăng nhập đến khi chạy xong một lượt
 nghiên cứu AI 7 giai đoạn, tạo cơ hội kinh doanh và đối soát chi phí. Tên nút và tên trang trong tài liệu
@@ -32,7 +32,7 @@ Hệ thống được thiết kế để **không bao giờ tự tiêu tiền ho
 | Provider đã bật, có API key, endpoint chính thức | Cài đặt → Quản lý AI provider |
 | Giá model do Owner nhập và đã có hiệu lực | Cài đặt → Cấu hình giá |
 | Cấu hình model cho agent của giai đoạn đó đã bật | Cài đặt → Model theo agent |
-| Phê duyệt riêng cho đúng task đó (dùng một lần) | Workflow → Yêu cầu duyệt task → Phê duyệt |
+| Một phê duyệt **chạy tự động** cho cả workflow, hoặc phê duyệt riêng cho từng task (dùng một lần) | Workflow → **Phê duyệt & chạy tự động** (hoặc Yêu cầu duyệt task) |
 | Ngân sách tháng còn đủ để giữ chỗ | Tự động (Tài chính & Ngân sách) |
 
 Thêm vào đó:
@@ -230,9 +230,42 @@ Vẫn ở trang **Nghiên cứu AI**:
 Nếu bước này báo lỗi, kiểm tra lại: đủ cấu hình cho 4 agent đã bật (mục 4.3) và có giá có hiệu lực cho đúng Model ID
 (mục 4.2).
 
-### 5.4. Phê duyệt và chạy workflow
+### 5.4. Phê duyệt một lần và chạy tự động (khuyến nghị)
+
+Trước khi bắt đầu, bản nháp nghiên cứu phải có **ít nhất 1 nguồn** (mục 5.2) và đã **Thêm giai đoạn AI** (mục 5.3).
 
 Bấm **Mở Workflow** (hoặc vào trang **Workflow** và chọn workflow vừa tạo):
+
+1. Ở khung **Chạy tự động**, bấm **Phê duyệt & chạy tự động**.
+2. Hộp xác nhận hiển thị:
+   - số bước, trong đó bao nhiêu bước gọi AI có trả phí;
+   - model sẽ dùng;
+   - số nguồn;
+   - **trần chi phí** của cả lượt nghiên cứu.
+
+   Đọc kỹ rồi bấm **OK**. Đây là **lần phê duyệt duy nhất**.
+3. Hệ thống tự gửi và duyệt yêu cầu workflow, bấm **Bắt đầu**, rồi bật chạy tự động. Trạng thái chuyển thành
+   **đang chạy tự động**.
+4. Worker tự xếp hàng từng bước theo thứ tự ở bảng trên. Bước sau chỉ chạy khi bước trước **thành công**. Bước 3 và
+   bước 4 trong bảng có thể chạy gần như song song. Cả 8 bước (kể cả bước kiểm tra bản nháp) thường xong trong vài phút.
+
+Ở **mỗi bước**, các kiểm soát vẫn áp dụng như khi chạy tay: quyền AI toàn cục, chính sách AI, giữ chỗ ngân sách, trần
+chi phí của lượt nghiên cứu và trần chi phí mỗi lần của agent. Chạy tự động **tự dừng** và không chạy bước tiếp theo
+khi:
+
+- có bước bị lỗi (workflow chuyển `FAILED`). Hệ thống **không tự chạy lại** request trả phí;
+- sau khi duyệt, anh/chị thêm hoặc xác minh nguồn, sửa model, giá, provider, API key hoặc chính sách. Khi đó cần bấm
+  **Phê duyệt & chạy tự động** lại;
+- chạm trần chi phí hoặc ngân sách tháng;
+- workflow bị hủy, hoặc đã quá **12 giờ** kể từ lúc duyệt;
+- anh/chị bấm **Dừng chạy tự động**. Bước đang chạy (nếu có) vẫn hoàn tất.
+
+Lý do dừng hiện ngay ở khung **Chạy tự động**. **Tạm dừng** workflow sẽ ngưng xếp hàng bước mới; **Tiếp tục** thì
+chạy tiếp.
+
+### 5.4b. Phê duyệt và chạy từng task (thủ công)
+
+Dùng khi muốn xem từng bước trước khi chạy bước sau:
 
 1. Ở ô **Chính sách**, chọn `owner-controlled-internal`.
 2. Bấm **Gửi phê duyệt**, rồi vào trang **Phê duyệt** để duyệt yêu cầu workflow.
@@ -337,6 +370,10 @@ Các vấn đề khác:
 | Dưới task AI báo "Chưa có chính sách AI được bật" | Chính sách `ai-inference-controlled` bị tắt; liên hệ người quản trị để bật lại |
 | "Đăng nhập Owner" / "Vui lòng đăng nhập Owner" | Chưa đăng nhập hoặc phiên đã hết hạn |
 | Nút **Chạy task** bị mờ | Task chưa có phê duyệt `APPROVED` còn hạn, hoặc giai đoạn trước chưa xong |
+| Không thấy nút **Yêu cầu duyệt task** | Workflow đang **chạy tự động**: task tự được xếp hàng, không cần duyệt riêng |
+| "Bản nháp nghiên cứu chưa có nguồn nào" khi bấm **Phê duyệt & chạy tự động** | Thêm ít nhất 1 nguồn (5.2) rồi bấm lại |
+| Chạy tự động "đã dừng · Dữ liệu, nguồn hoặc cấu hình AI đã thay đổi sau khi duyệt" | Có thay đổi sau lúc duyệt; kiểm tra rồi bấm **Phê duyệt & chạy tự động** lại |
+| Chạy tự động "đã dừng · Một task bị lỗi" | Xem **Lịch sử thực thi** và trang **Chi phí AI**; lỗi kiểm tra bản nháp thường do thiếu nguồn hoặc thiếu thị trường mục tiêu |
 | Trang báo lỗi 502 vài chục giây | Backend đang khởi động lại, chờ khoảng 30–60 giây |
 
 ## 10. Vận hành server

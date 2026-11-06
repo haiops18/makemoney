@@ -1,5 +1,14 @@
 # Known issues
 
+## v29.2.0
+
+- Auto-run is covered by PostgreSQL integration and component tests with fake
+  provider transports; no browser E2E drives a full auto-run.
+- A research draft can have only one workflow. If its workflow FAILS (for example
+  the validation step without sources), create a new research draft.
+- The one-click flow approves the workflow and the plan from the Workflow page after
+  a confirmation dialog; both approvals are still recorded in the Approval Center.
+
 ## v29.1.0
 
 - Remembered sign-in sessions are stored in localStorage; use "Remember me" only on
