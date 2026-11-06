@@ -15,7 +15,9 @@
 - Default session lifetime is 12 hours (`SESSION_TTL_MINUTES=720`).
 - Added the Vietnamese Owner guide `docs/USER_GUIDE.md`.
 
-## v29.0.0 — Step 6 AI Brain & Research Agents
+## v29.0.0 — Step 6 AI Brain & Research Agents — RELEASED
+
+- Release: https://github.com/haiops18/makemoney/releases/tag/v29.0.0
 
 - Seven-stage AI research pipeline (plan, market, competitors, opportunity,
   financial, risk, report) on the existing workflow, approval, budget-reservation
