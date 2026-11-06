@@ -1,5 +1,8 @@
 """PostgreSQL-backed worker for explicitly approved, pure internal handlers.
 
+Tasks are queued by a per-task Owner approval or by an Owner-approved workflow
+auto-run (see auto_run.py); both are rechecked when an execution is claimed.
+
 Transactions only claim/finalize work. The handler runs outside a transaction;
 lease tokens fence late workers. Cancellation discards in-flight results. Automatic
 recovery never reuses a consumed approval: Owner must approve a retry again.
@@ -19,6 +22,7 @@ from app.orchestration.handlers import dispatch
 from app.orchestration.retry import is_retryable, retry_after
 from app.orchestration.state import TASK_TRANSITIONS, WORKFLOW_TRANSITIONS, validate_transition
 from app.ai_brain.execution import AI_TASK_ROLES, AIExecutionDenied, dispatch_invocation, prepare_ai_action
+from app.orchestration.auto_run import auto_queue_one, verify_auto_run
 from app.db.models import AIInvocation
 
 
@@ -106,18 +110,26 @@ def claim_one(factory: sessionmaker) -> tuple[UUID, UUID, str, dict, int] | None
             if execution.status != 'QUEUED' or workflow.status != 'RUNNING' or task.status != 'RUNNING':
                 continue
             try:
-                if not execution.policy_id or not execution.authorization_id or not execution.action_hash or execution.input_snapshot_json is None:
+                if (not execution.policy_id or not (execution.authorization_id or execution.auto_run_id) or not execution.action_hash
+                    or execution.input_snapshot_json is None):
                     raise GateDenied('Execution authorization is incomplete')
                 is_ai = task.task_type in AI_TASK_ROLES
                 action, digest = (prepare_ai_action if is_ai else task_action)(db, workflow.id, task.id, execution.policy_id)
-                auth = db.scalar(select(ActionAuthorization).where(ActionAuthorization.id == execution.authorization_id).with_for_update())
-                approval = db.get(ApprovalRequest, auth.approval_id) if auth else None
                 unfinished = db.scalar(select(func.count()).select_from(TaskDependency).join(WorkflowTask, WorkflowTask.id == TaskDependency.depends_on_task_id).where(TaskDependency.task_id == task.id, WorkflowTask.status != 'SUCCEEDED')) or 0
-                if (not auth or not approval or auth.status != 'CONSUMED' or approval.status != 'CONSUMED'
-                    or is_expired(auth.expires_at) or is_expired(approval.expires_at) or unfinished
-                    or digest != execution.action_hash or digest != auth.action_hash or digest != approval.action_hash
-                    or (action['action_payload'] if is_ai else action['action_payload']['handler_input']) != execution.input_snapshot_json):
-                    raise GateDenied('Execution authorization or input changed')
+                unchanged = (not unfinished and digest == execution.action_hash
+                             and (action['action_payload'] if is_ai else action['action_payload']['handler_input']) == execution.input_snapshot_json)
+                if execution.auto_run_id is not None:
+                    # Raises when the auto-run is no longer active or its approved plan changed.
+                    verify_auto_run(db, execution.auto_run_id, workflow, in_flight=True)
+                    if not unchanged:
+                        raise GateDenied('Execution input changed')
+                else:
+                    auth = db.scalar(select(ActionAuthorization).where(ActionAuthorization.id == execution.authorization_id).with_for_update())
+                    approval = db.get(ApprovalRequest, auth.approval_id) if auth else None
+                    if (not auth or not approval or auth.status != 'CONSUMED' or approval.status != 'CONSUMED'
+                        or is_expired(auth.expires_at) or is_expired(approval.expires_at) or not unchanged
+                        or digest != auth.action_hash or digest != approval.action_hash):
+                        raise GateDenied('Execution authorization or input changed')
             except (GateDenied, AIExecutionDenied):
                 invocation = db.scalar(select(AIInvocation).where(AIInvocation.execution_id == execution.id).with_for_update())
                 if invocation and invocation.status == 'PREPARED':
@@ -227,6 +239,7 @@ def recover_one(factory: sessionmaker) -> bool:
 def run_once(factory: sessionmaker, *, ai_transport=None) -> bool:
     recovered = recover_one(factory)
     activated = activate_one(factory)
+    auto_queued = auto_queue_one(factory)
     claimed = claim_one(factory)
     if claimed:
         execution_id, token, task_type, payload, timeout = claimed
@@ -241,7 +254,7 @@ def run_once(factory: sessionmaker, *, ai_transport=None) -> bool:
         else:
             result, error = _invoke(task_type, payload, timeout)
         finalize(factory, execution_id, token, result, error)
-    return recovered or activated or claimed is not None
+    return recovered or activated or auto_queued or claimed is not None
 
 
 def main() -> None:

@@ -1,5 +1,10 @@
 # Current task
 
+## v29.2.0 — 2026-11-06 — workflow auto-run
+
+Branch feat/workflow-auto-run. One approval runs every research workflow stage in
+order. Next: PR, CI, merge, tag v29.2.0, redeploy (migration 0019).
+
 ## v29.1.0 — 2026-11-06 — sign-in and AI stage approval
 
 Branch feat/login-ai-task-approval. Owner asked for a detailed usage guide, a working

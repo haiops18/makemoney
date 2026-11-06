@@ -4,6 +4,13 @@ Owner guide (Vietnamese): [docs/USER_GUIDE.md](docs/USER_GUIDE.md). It covers
 sign-in, provider/price/agent setup, running the seven AI stages, promotion and
 cost reconciliation.
 
+## v29.2.0 — one-approval auto-run
+
+- Research workflows: **Approve & run automatically** approves the whole plan once;
+  the worker then runs every stage in dependency order. Every AI call still checks
+  consent, policy, the research cost limit and its budget reservation; any change,
+  failure or budget denial stops the run. Per-task approval remains available.
+
 ## v29.1.0 — sign-in and AI stage approval
 
 - Full-screen sign-in page with Enter-to-submit and "Remember me". Remembered

@@ -1,5 +1,22 @@
 # Decisions
 
+## 2026-11-06 — v29.2.0 workflow auto-run
+
+- Owner decision ("bỏ qua bước phê duyệt các task, chỉ có 1 bước phê duyệt chung"):
+  replace per-task approval with one workflow-level approval for research workflows.
+  This supersedes "each stage needs its own exact one-time approval" for auto-run;
+  per-task approval stays as the manual path.
+- The single approval is an `AI_INFERENCE` approval on resource `workflow` under the
+  AI policy, bound to a plan hash that excludes task statuses but includes everything
+  that determines what is sent and what it may cost. Prior-stage outputs cannot be
+  known in advance, so they are not in the plan; they are model outputs, validated as
+  before, and do not change the cost ceiling.
+- Fail closed without per-call approval: recompute the plan at queue, claim and
+  dispatch; keep consent, policy, research cost limit and per-call reservation checks;
+  stop (never retry) on any denial or failure; 12-hour grant lifetime.
+- Grant executions store `auto_run_id` instead of `authorization_id` (which stays
+  unique per execution); a check constraint forbids both.
+
 ## 2026-11-06 — v29.1.0 sign-in and AI task policy
 
 - Owner request supersedes the earlier "token only in memory" rule: "Remember me"

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, JSON, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, JSON, Numeric, String, Text, UniqueConstraint, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -577,6 +577,7 @@ class TaskExecution(Base):
         CheckConstraint('attempt_number >= 1', name='ck_task_execution_attempt'),
         CheckConstraint("status IN ('QUEUED','RUNNING','SUCCEEDED','FAILED','CANCELLED','TIMED_OUT','ABANDONED')", name='ck_task_execution_status'),
         UniqueConstraint('authorization_id', name='uq_task_execution_authorization'),
+        CheckConstraint('authorization_id IS NULL OR auto_run_id IS NULL', name='ck_task_execution_single_grant'),
         Index('ix_task_execution_task_started', 'task_id', 'started_at'),
         Index('ix_task_execution_lease', 'status', 'lease_expires_at'),
     )
@@ -597,6 +598,39 @@ class TaskExecution(Base):
     output_reference: Mapped[str | None] = mapped_column(String(500))
     output_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Set instead of authorization_id when an Owner-approved workflow auto-run queued this attempt.
+    auto_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('workflow_auto_runs.id', ondelete='RESTRICT'))
+
+
+class WorkflowAutoRun(Base):
+    """One Owner approval that lets the worker queue every task of a workflow in order.
+
+    The approval is bound to a server-derived plan hash (tasks, models, prices, prompts,
+    sources, policies, cost ceiling). Every queue and dispatch recomputes the plan and
+    stops the run when anything changed; per-call budget reservations still apply.
+    """
+    __tablename__ = 'workflow_auto_runs'
+    __table_args__ = (
+        CheckConstraint("status IN ('ACTIVE','COMPLETED','STOPPED')", name='ck_workflow_auto_run_status'),
+        UniqueConstraint('approval_id', name='uq_workflow_auto_run_approval'),
+        UniqueConstraint('authorization_id', name='uq_workflow_auto_run_authorization'),
+        Index('uq_workflow_auto_run_active', 'workflow_id', unique=True,
+              postgresql_where=text("status = 'ACTIVE'"), sqlite_where=text("status = 'ACTIVE'")),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    workflow_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('workflows.id', ondelete='RESTRICT'), nullable=False)
+    workflow_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    ai_policy_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('policies.id', ondelete='RESTRICT'), nullable=False)
+    internal_policy_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('policies.id', ondelete='RESTRICT'), nullable=False)
+    approval_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('approval_requests.id', ondelete='RESTRICT'), nullable=False)
+    authorization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('action_authorizations.id', ondelete='RESTRICT'), nullable=False)
+    plan_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default='ACTIVE')
+    stop_reason: Mapped[str | None] = mapped_column(String(300))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class WorkflowEvent(Base):

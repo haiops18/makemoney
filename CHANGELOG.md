@@ -1,5 +1,24 @@
 # Changelog
 
+## v29.2.0 — One-approval workflow auto-run
+
+- Added workflow auto-run for research workflows: one Owner approval ("Approve & run
+  automatically") and the worker queues every stage in dependency order, with no
+  per-task approval. Per-task approval remains available.
+- The approval binds a server-derived plan hash: tasks and dependencies, pinned
+  prompts and prices, agent profiles, provider and credential version, sources,
+  both policies, consent version and the research cost limit. Every queue, claim
+  and dispatch recomputes the plan; any change stops the auto-run.
+- Each AI call still needs global consent, the AI policy, the research cost limit
+  and its own budget reservation. The auto-run stops on failure, plan change,
+  budget denial, cancellation, Owner stop or 12-hour expiry; it never retries a
+  paid call. Pause halts queuing and resume continues.
+- The auto-run needs at least one research source (otherwise the validation step
+  would fail the workflow).
+- API: `GET /workflows/{id}/auto-run-action`, `GET|POST /workflows/{id}/auto-run`,
+  `POST /workflows/{id}/auto-run/stop`. Migration `20261106_0019` adds
+  `workflow_auto_runs` and `task_executions.auto_run_id`.
+
 ## v29.1.0 — Owner sign-in screen and AI stage approval fix
 
 - Fixed: requesting approval for an AI research stage on the Workflow page used the

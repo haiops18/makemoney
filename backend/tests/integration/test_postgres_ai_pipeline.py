@@ -326,3 +326,110 @@ def test_connection_test_is_consent_gated_and_records_outcome(pg, monkeypatch):
     custom = client.post('/api/v1/ai/providers', json={'name': f'Compat {uuid4().hex[:8]}', 'kind': 'OPENAI_COMPATIBLE', 'base_url': 'https://llm.example.com/v1', 'default_model': 'm', 'api_key': 'x'}, headers=key()).json()
     assert custom['adapter_verified'] is False
     assert client.post(f"/api/v1/ai/providers/{custom['id']}/connection-test", headers=key()).status_code == 403
+
+
+def _auto_run_approval(client, base, internal, ai):
+    prepared = client.get(base + '/auto-run-action', params={'ai_policy_id': ai, 'internal_policy_id': internal}, headers=HEADERS)
+    assert prepared.status_code == 200, prepared.text
+    return prepared.json(), _approve(client, prepared.json()['action'])
+
+
+def _drain(factory, transport, rounds=60):
+    for _ in range(rounds):
+        if not run_once(factory, ai_transport=transport):
+            break
+
+
+def test_one_auto_run_approval_runs_the_whole_pipeline_in_order(pg):
+    client, factory = pg
+    internal, ai = _policies(client)
+    _enable_consent(client, ai)
+    _configure_agents(client)
+    run_id, workflow_id, verified_id = _research(client)
+    base = _start(client, factory, workflow_id, internal)
+    prepared, approval_id = _auto_run_approval(client, base, internal, ai)
+    assert prepared['summary']['task_count'] == 8 and prepared['summary']['ai_task_count'] == 7 and prepared['summary']['max_cost_usd'] == '2.000000'
+    started = client.post(base + '/auto-run', json={'ai_policy_id': ai, 'internal_policy_id': internal, 'approval_id': approval_id}, headers=key())
+    assert started.status_code == 201, started.text
+    # The one approval is consumed; it cannot start a second auto-run.
+    again = client.post(base + '/auto-run', json={'ai_policy_id': ai, 'internal_policy_id': internal, 'approval_id': approval_id}, headers=key())
+    assert again.status_code == 403
+    transport = FakeProviders(verified_id)
+    _drain(factory, transport)
+    tasks = client.get(base + '/tasks', headers=HEADERS).json()
+    assert all(task['status'] == 'SUCCEEDED' for task in tasks), [(t['task_type'], t['status']) for t in tasks]
+    assert client.get(base, headers=HEADERS).json()['status'] == 'COMPLETED'
+    assert len(transport.calls) == 7
+    state = client.get(base + '/auto-run', headers=HEADERS).json()
+    assert state['status'] == 'COMPLETED' and state['id'] == started.json()['id']
+    with factory() as db:
+        rows = db.scalars(select(TaskExecution).join(WorkflowTask, WorkflowTask.id == TaskExecution.task_id).where(WorkflowTask.workflow_id == UUID(workflow_id))).all()
+        assert len(rows) == 8 and all(row.auto_run_id == UUID(state['id']) and row.authorization_id is None for row in rows)
+        assert db.scalar(select(func.count()).select_from(BudgetReservation).join(AIInvocation, AIInvocation.reservation_id == BudgetReservation.id)
+                         .where(AIInvocation.research_run_id == UUID(run_id))) == 7
+    results = client.get(f'/api/v1/ai/research/{run_id}/results', headers=HEADERS).json()
+    assert len(results['stages']) == 7
+
+
+def test_auto_run_stops_when_the_approved_plan_changes(pg):
+    client, factory = pg
+    internal, ai = _policies(client)
+    _enable_consent(client, ai)
+    _configure_agents(client)
+    run_id, workflow_id, verified_id = _research(client)
+    base = _start(client, factory, workflow_id, internal)
+    _, approval_id = _auto_run_approval(client, base, internal, ai)
+    assert client.post(base + '/auto-run', json={'ai_policy_id': ai, 'internal_policy_id': internal, 'approval_id': approval_id}, headers=key()).status_code == 201
+    # A source added after the approval changes the plan: nothing more may be queued under it.
+    assert client.post(f'/api/v1/ai/research/{run_id}/sources', json={'source_name': 'Late', 'excerpt': 'Added after approval'}, headers=key()).status_code == 201
+    transport = FakeProviders(verified_id)
+    _drain(factory, transport)
+    state = client.get(base + '/auto-run', headers=HEADERS).json()
+    assert state['status'] == 'STOPPED' and 'changed' in state['stop_reason']
+    assert transport.calls == []
+    tasks = {task['task_type']: task['status'] for task in client.get(base + '/tasks', headers=HEADERS).json()}
+    assert tasks['VALIDATE_RESEARCH_DRAFT'] == 'READY' and tasks['AI_RESEARCH_PLAN'] == 'BLOCKED'
+
+
+def test_auto_run_requires_sources_and_can_be_stopped_by_owner(pg):
+    client, factory = pg
+    internal, ai = _policies(client)
+    _enable_consent(client, ai)
+    _configure_agents(client)
+    run = client.post('/api/v1/ai/research', json={'objective': 'No sources yet', 'target_market': 'VN', 'max_cost_usd': '1'}, headers=key()).json()
+    workflow = client.post(f"/api/v1/ai/research/{run['id']}/workflow", json={'name': f'No source {uuid4().hex[:6]}'}, headers=key()).json()
+    assert client.post(f"/api/v1/ai/research/{run['id']}/pipeline", json={'confirm_no_execution': True}, headers=key()).status_code == 201
+    base = _start(client, factory, workflow['id'], internal)
+    missing = client.get(base + '/auto-run-action', params={'ai_policy_id': ai, 'internal_policy_id': internal}, headers=HEADERS)
+    assert missing.status_code == 409 and 'source' in missing.json()['detail']
+    # Wrong policy pairing is denied.
+    assert client.get(base + '/auto-run-action', params={'ai_policy_id': internal, 'internal_policy_id': internal}, headers=HEADERS).status_code == 409
+    source = client.post(f"/api/v1/ai/research/{run['id']}/sources", json={'source_name': 'Owner note', 'excerpt': 'Shops want invoices.'}, headers=key()).json()
+    _, approval_id = _auto_run_approval(client, base, internal, ai)
+    assert client.post(base + '/auto-run', json={'ai_policy_id': ai, 'internal_policy_id': internal, 'approval_id': approval_id}, headers=key()).status_code == 201
+    stopped = client.post(base + '/auto-run/stop', headers=key())
+    assert stopped.status_code == 200 and stopped.json()['status'] == 'STOPPED'
+    assert client.post(base + '/auto-run/stop', headers=key()).status_code == 409
+    transport = FakeProviders(source['id'])
+    _drain(factory, transport)
+    assert transport.calls == []
+    assert {task['status'] for task in client.get(base + '/tasks', headers=HEADERS).json()} == {'READY', 'BLOCKED'}
+
+
+def test_owner_stop_lets_a_queued_step_finish_but_queues_nothing_more(pg):
+    from app.orchestration.auto_run import auto_queue_one
+    client, factory = pg
+    internal, ai = _policies(client)
+    _enable_consent(client, ai)
+    _configure_agents(client)
+    _, workflow_id, verified_id = _research(client)
+    base = _start(client, factory, workflow_id, internal)
+    _, approval_id = _auto_run_approval(client, base, internal, ai)
+    assert client.post(base + '/auto-run', json={'ai_policy_id': ai, 'internal_policy_id': internal, 'approval_id': approval_id}, headers=key()).status_code == 201
+    assert auto_queue_one(factory)  # Queues the validation step only.
+    assert client.post(base + '/auto-run/stop', headers=key()).status_code == 200
+    transport = FakeProviders(verified_id)
+    _drain(factory, transport)
+    tasks = {task['task_type']: task['status'] for task in client.get(base + '/tasks', headers=HEADERS).json()}
+    assert tasks['VALIDATE_RESEARCH_DRAFT'] == 'SUCCEEDED' and tasks['AI_RESEARCH_PLAN'] == 'READY'
+    assert client.get(base, headers=HEADERS).json()['status'] == 'RUNNING' and transport.calls == []
