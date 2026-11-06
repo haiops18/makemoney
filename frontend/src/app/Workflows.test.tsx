@@ -66,3 +66,53 @@ it('supports English and surfaces API errors', async () => {
   expect(screen.getByRole('heading', { name: 'Workflow orchestration' })).toBeInTheDocument();
   expect((await screen.findAllByRole('alert')).every(alert => alert.textContent?.includes('API unavailable'))).toBe(true);
 });
+
+it('requests approval for an AI stage under the AI inference policy, not the internal policy', async () => {
+  vi.spyOn(window, 'confirm').mockReturnValue(true);
+  const aiPolicyId = '00000000-0000-4000-8000-000000000005';
+  const taskId = '00000000-0000-4000-8000-000000000006';
+  const internalTaskId = '00000000-0000-4000-8000-000000000007';
+  const aiTask = { id: taskId, workflow_id: id, name: 'Research plan', description: null, task_type: 'AI_RESEARCH_PLAN', assigned_role: 'research', status: 'READY', retry_count: 0, max_retries: 0, timeout_seconds: 120, depends_on: [], next_retry_at: null };
+  const internalTask = { ...aiTask, id: internalTaskId, name: 'Validate draft', task_type: 'VALIDATE_RESEARCH_DRAFT' };
+  const base = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const path = String(input);
+    if (path.endsWith('/policies')) return ok([{ id: policyId, name: 'owner-controlled-internal', enabled: true, rules_json: { allowed_action_types: ['INTERNAL_WORKFLOW'] } }, { id: aiPolicyId, name: 'ai-inference-controlled', enabled: true, rules_json: { allowed_action_types: ['AI_CONTROL_ENABLE', 'AI_INFERENCE'] } }]);
+    if (path.endsWith(`/workflows/${id}`)) return ok({ ...item, status: 'RUNNING', research_run_id: oppId, opportunity_id: null });
+    if (path.includes('/tasks?')) return ok([aiTask, internalTask]);
+    if (path.includes('/approval-action?')) {
+      const policy = new URL(path, 'http://x').searchParams.get('policy_id');
+      return ok({ action: { policy_id: policy, action_type: path.includes(taskId) ? 'AI_INFERENCE' : 'INTERNAL_WORKFLOW', action_payload: {}, resource_type: 'workflow_task', resource_id: path.includes(taskId) ? taskId : internalTaskId, scope: 'ONCE' }, action_hash: 'hash' });
+    }
+    if (path.endsWith('/approvals') && init?.method === 'POST') return ok({ id: policyId, policy_id: aiPolicyId, status: 'PENDING', resource_type: 'workflow_task', resource_id: taskId, action_hash: 'hash' });
+    return base(input, init);
+  });
+  renderPage();
+  fireEvent.click(await screen.findByRole('button', { name: 'Research flow' }));
+  expect(await screen.findByText('Chính sách AI: ai-inference-controlled')).toBeInTheDocument();
+  const [aiButton, internalButton] = await screen.findAllByRole('button', { name: 'Yêu cầu duyệt task' });
+  fireEvent.click(aiButton);
+  await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([url, init]) => String(url).endsWith('/approvals') && init?.method === 'POST')).toBe(true));
+  const prepared = vi.mocked(fetch).mock.calls.find(([url]) => String(url).includes(`/tasks/${taskId}/approval-action`));
+  expect(String(prepared?.[0])).toContain(`policy_id=${aiPolicyId}`);
+  const created = vi.mocked(fetch).mock.calls.find(([url, init]) => String(url).endsWith('/approvals') && init?.method === 'POST');
+  expect(JSON.parse(String(created?.[1]?.body))).toMatchObject({ policy_id: aiPolicyId, action_type: 'AI_INFERENCE', reason: 'Phê duyệt task AI' });
+  fireEvent.click(internalButton);
+  await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes(`/tasks/${internalTaskId}/approval-action`))).toBe(true));
+  expect(String(vi.mocked(fetch).mock.calls.find(([url]) => String(url).includes(`/tasks/${internalTaskId}/approval-action`))?.[0])).toContain(`policy_id=${policyId}`);
+});
+
+it('blocks AI stage approval when no AI inference policy is enabled', async () => {
+  const taskId = '00000000-0000-4000-8000-000000000006';
+  const base = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const path = String(input);
+    if (path.endsWith(`/workflows/${id}`)) return ok({ ...item, status: 'RUNNING' });
+    if (path.includes('/tasks?')) return ok([{ id: taskId, workflow_id: id, name: 'Research plan', description: null, task_type: 'AI_RESEARCH_PLAN', assigned_role: 'research', status: 'READY', retry_count: 0, max_retries: 0, timeout_seconds: 120, depends_on: [], next_retry_at: null }]);
+    return base(input, init);
+  });
+  renderPage();
+  fireEvent.click(await screen.findByRole('button', { name: 'Research flow' }));
+  expect(await screen.findByText('Chưa có chính sách AI được bật; không thể duyệt task AI.')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Yêu cầu duyệt task' })).toBeDisabled();
+});

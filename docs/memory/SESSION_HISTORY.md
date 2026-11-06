@@ -1,5 +1,16 @@
 # Session history
 
+## 2026-11-06 — v29.1.0 sign-in and AI stage approval
+
+Owner asked for a usage guide, a fix for running AI stages from the UI and a new
+sign-in screen (remember me, Enter to sign in, 12-hour sessions). Found that the
+Workflow page sent AI stage approvals under the internal policy; fixed it and added
+component tests. Added the sign-in page, session persistence, 401 handling, a
+12-hour default TTL, backend expiry tests, E2E coverage and docs/USER_GUIDE.md.
+Also on the server: opened a firewall allow-rule for 203.190.173.0/25 (ports
+1–10000), started a temporary Cloudflare quick tunnel that stops at 18:00, and
+changed the admin password in the server `.env` (not in Git).
+
 ## 2026-11-05 — Step 6 completion session
 
 Owner resumed Step 6 and asked for deployment. Added migration 0018, provider

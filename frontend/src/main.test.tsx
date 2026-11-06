@@ -27,29 +27,89 @@ beforeEach(async () => {
   }));
 });
 
-afterEach(() => cleanup());
+afterEach(() => { cleanup(); localStorage.clear(); sessionStorage.clear(); vi.useRealTimers(); });
+
+function signIn(remember = false) {
+  fireEvent.change(screen.getByLabelText("Tên đăng nhập Admin"), { target: { value: "admin" } });
+  fireEvent.change(screen.getByLabelText("Mật khẩu Admin"), { target: { value: "password" } });
+  if (remember) fireEvent.click(screen.getByLabelText("Ghi nhớ đăng nhập"));
+  // Pressing Enter in a field submits the enclosing form; the browser does this natively.
+  fireEvent.submit(screen.getByLabelText("Mật khẩu Admin").closest("form")!);
+}
 
 describe("Command Center shell", () => {
-  it("requires an in-memory Owner token before loading API data", () => {
+  it("shows a full-screen sign-in before any API data is requested", () => {
     renderShell();
-    expect(screen.getByRole("heading", { name: "Kết nối an toàn" })).toBeInTheDocument();
-    expect(localStorage.getItem("ownerToken")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Đăng nhập Owner" })).toBeInTheDocument();
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Ghi nhớ đăng nhập")).not.toBeChecked();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("loads only verified dashboard API responses after a token is entered", async () => {
+  it("validates empty credentials without calling the API", () => {
     renderShell();
-    fireEvent.change(screen.getByLabelText("Tên đăng nhập Admin"), { target: { value: "admin" } });
-    fireEvent.change(screen.getByLabelText("Mật khẩu Admin"), { target: { value: "password" } });
-    fireEvent.click(screen.getByRole("button", { name: "Đăng nhập" }));
+    fireEvent.submit(screen.getByLabelText("Mật khẩu Admin").closest("form")!);
+    expect(screen.getByRole("alert")).toHaveTextContent("Nhập tên đăng nhập và mật khẩu.");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("signs in on form submit and keeps an unremembered session only for this tab", async () => {
+    renderShell();
+    signIn();
     await waitFor(() => expect(screen.getByText("Tổng agent")).toBeInTheDocument());
     expect(screen.getAllByText("7")).toHaveLength(2);
-    expect(fetch).toHaveBeenCalled();
-    expect(localStorage.getItem("ownerToken")).toBeNull();
+    const login = vi.mocked(fetch).mock.calls.find(([url]) => String(url).includes("/auth/login"));
+    expect(JSON.parse(String(login?.[1]?.body))).toEqual({ username: "admin", password: "password" });
+    expect(localStorage.getItem("ownerSession")).toBeNull();
+    expect(JSON.parse(sessionStorage.getItem("ownerSession")!)).toMatchObject({ token: "session-test-token", username: "admin" });
   });
 
-  it("switches the complete shell navigation to English", async () => {
+  it("remembers the session across reloads until sign-out, then prefills the username", async () => {
+    const first = renderShell();
+    signIn(true);
+    await waitFor(() => expect(screen.getByText("Tổng agent")).toBeInTheDocument());
+    expect(JSON.parse(localStorage.getItem("ownerSession")!)).toMatchObject({ token: "session-test-token" });
+    first.unmount();
+    renderShell();
+    expect(await screen.findByText("Tổng agent")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Đăng xuất" }));
+    expect(screen.getByRole("heading", { name: "Đăng nhập Owner" })).toBeInTheDocument();
+    expect(localStorage.getItem("ownerSession")).toBeNull();
+    expect(screen.getByLabelText("Tên đăng nhập Admin")).toHaveValue("admin");
+    expect(screen.getByLabelText("Ghi nhớ đăng nhập")).toBeChecked();
+  });
+
+  it("discards an expired stored session", () => {
+    localStorage.setItem("ownerSession", JSON.stringify({ token: "old", expiresAt: Date.now() - 1000, username: "admin" }));
+    renderShell();
+    expect(screen.getByRole("heading", { name: "Đăng nhập Owner" })).toBeInTheDocument();
+    expect(localStorage.getItem("ownerSession")).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("returns to sign-in when the backend rejects the session", async () => {
+    localStorage.setItem("ownerSession", JSON.stringify({ token: "revoked", expiresAt: Date.now() + 60_000, username: "admin" }));
+    vi.mocked(fetch).mockImplementation(async () => ({ ok: false, status: 401, json: async () => ({ detail: "Unauthorized" }) }) as Response);
+    renderShell();
+    expect(await screen.findByRole("heading", { name: "Đăng nhập Owner" })).toBeInTheDocument();
+    expect(localStorage.getItem("ownerSession")).toBeNull();
+  });
+
+  it("shows an invalid-credentials error and stays on the sign-in screen", async () => {
+    vi.mocked(fetch).mockImplementation(async () => ({ ok: false, status: 401, json: async () => ({ detail: "Invalid" }) }) as Response);
+    renderShell();
+    signIn();
+    expect(await screen.findByText("Tên đăng nhập hoặc mật khẩu không hợp lệ.")).toBeInTheDocument();
+    expect(sessionStorage.getItem("ownerSession")).toBeNull();
+  });
+
+  it("switches the sign-in screen and the shell navigation to English", async () => {
     renderShell();
     fireEvent.click(screen.getByLabelText("Chuyển ngôn ngữ"));
+    expect(await screen.findByRole("heading", { name: "Owner sign-in" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Admin username"), { target: { value: "admin" } });
+    fireEvent.change(screen.getByLabelText("Admin password"), { target: { value: "password" } });
+    fireEvent.submit(screen.getByLabelText("Admin password").closest("form")!);
     await waitFor(() => expect(screen.getByText("Dashboard")).toBeInTheDocument());
     expect(screen.getByText("Approval Center")).toBeInTheDocument();
   });

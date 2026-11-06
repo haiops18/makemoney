@@ -1,5 +1,17 @@
 # AUTO MONEY AI
 
+Owner guide (Vietnamese): [docs/USER_GUIDE.md](docs/USER_GUIDE.md). It covers
+sign-in, provider/price/agent setup, running the seven AI stages, promotion and
+cost reconciliation.
+
+## v29.1.0 — sign-in and AI stage approval
+
+- Full-screen sign-in page with Enter-to-submit and "Remember me". Remembered
+  sessions persist in this browser until expiry or sign-out; otherwise they last
+  for the current tab. Sessions expire after 12 hours (`SESSION_TTL_MINUTES=720`).
+- The Workflow page now requests approval for AI stages under the enabled
+  `AI_INFERENCE` policy, so the seven AI stages can be approved and run from the UI.
+
 ## AI Brain & Research Agents — Step 6 (v29.0.0)
 
 The Owner can run a seven-stage AI research pipeline on Owner-entered evidence:

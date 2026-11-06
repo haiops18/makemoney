@@ -1,5 +1,12 @@
 # Current task
 
+## v29.1.0 — 2026-11-06 — sign-in and AI stage approval
+
+Branch feat/login-ai-task-approval. Owner asked for a detailed usage guide, a working
+step 7 (approve and run AI stages from the UI) and a sign-in screen with remember me,
+Enter to sign in and a 12-hour session. After CI passes: merge, tag v29.1.0,
+redeploy, and set SESSION_TTL_MINUTES=720 in the server `.env`.
+
 ## Step 6 implementation complete — 2026-11-05 — release verification in progress
 
 Owner resumed Step 6 ("triển khai makemoney và làm tiếp bước 6 đến khi hoàn thành").

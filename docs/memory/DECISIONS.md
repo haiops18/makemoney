@@ -1,5 +1,17 @@
 # Decisions
 
+## 2026-11-06 — v29.1.0 sign-in and AI task policy
+
+- Owner request supersedes the earlier "token only in memory" rule: "Remember me"
+  stores the signed session token in localStorage until its expiry; without it the
+  token is kept in sessionStorage. Trade-off accepted: a script running in the page
+  (XSS) could read a remembered token. Mitigations: no third-party scripts, the token
+  is HMAC-signed and expires (12 h default), rotating `SESSION_SECRET` revokes all
+  sessions, and any 401 clears the stored session.
+- Task approvals choose their policy by task type: `AI_*` tasks use the enabled
+  policy that allows `AI_INFERENCE`; other tasks keep the selected internal policy.
+  The backend still enforces policy rules; the UI choice is only a convenience.
+
 ## 2026-11-05 — Step 6 completion decisions
 
 - Adapters are a closed registry keyed by provider kind with fixed official hosts;

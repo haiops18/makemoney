@@ -1,5 +1,20 @@
 # Changelog
 
+## v29.1.0 — Owner sign-in screen and AI stage approval fix
+
+- Fixed: requesting approval for an AI research stage on the Workflow page used the
+  internal workflow policy, so the backend refused every AI stage. AI tasks now use
+  the enabled `AI_INFERENCE` policy (shown on the task); internal tasks are unchanged.
+  The UI blocks AI stage approval when no AI policy is enabled.
+- Added a full-screen Owner sign-in page: Enter submits, empty-field validation,
+  server/timeout errors, and a "Remember me" option.
+- Sessions: "Remember me" keeps the session in localStorage until it expires or the
+  Owner signs out and prefills the username; otherwise the session lives in
+  sessionStorage for the current tab. Expired sessions are discarded and any 401
+  returns to the sign-in page.
+- Default session lifetime is 12 hours (`SESSION_TTL_MINUTES=720`).
+- Added the Vietnamese Owner guide `docs/USER_GUIDE.md`.
+
 ## v29.0.0 — Step 6 AI Brain & Research Agents
 
 - Seven-stage AI research pipeline (plan, market, competitors, opportunity,

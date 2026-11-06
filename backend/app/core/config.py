@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     admin_password: SecretStr = SecretStr("change-me-admin-password")
     session_secret: SecretStr = SecretStr("change-me-session-secret")
     ai_credentials_key: SecretStr | None = None
-    session_ttl_minutes: int = 60
+    session_ttl_minutes: int = 720
     database_url: str = "postgresql+psycopg://auto_money:change-me@postgres:5432/auto_money"
     redis_url: str = "redis://redis:6379/0"
     monthly_budget_usd: int = 50
