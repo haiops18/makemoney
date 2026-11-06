@@ -1,5 +1,12 @@
 # Project status
 
+## v29.1.0 — sign-in screen and AI stage approval fix — 2026-11-06
+
+v29.0.0 is released and deployed. v29.1.0 adds the full-screen sign-in (remember me,
+Enter to submit, 12-hour sessions) and fixes approving AI stages from the Workflow
+page. Local gates: frontend lint/typecheck/36 tests/build, backend 96 unit tests;
+PostgreSQL suites and E2E run in CI. Owner guide: docs/USER_GUIDE.md.
+
 ## Step 6 COMPLETED — v29.0.0 released and deployed — 2026-11-05
 
 Verified release https://github.com/haiops18/makemoney/releases/tag/v29.0.0 at

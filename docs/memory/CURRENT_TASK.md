@@ -1,5 +1,12 @@
 # Current task
 
+## v29.1.0 — 2026-11-06 — sign-in and AI stage approval
+
+Branch feat/login-ai-task-approval. Owner asked for a detailed usage guide, a working
+step 7 (approve and run AI stages from the UI) and a sign-in screen with remember me,
+Enter to sign in and a 12-hour session. After CI passes: merge, tag v29.1.0,
+redeploy, and set SESSION_TTL_MINUTES=720 in the server `.env`.
+
 ## Step 6 COMPLETED — v29.0.0 released and deployed — 2026-11-05
 
 Verified release https://github.com/haiops18/makemoney/releases/tag/v29.0.0 at

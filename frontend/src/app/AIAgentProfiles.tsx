@@ -36,7 +36,7 @@ export default function AIAgentProfiles({ token }: { token: string }) {
   }
   function chooseAgent(id: string) { setAgentId(id); const current = profiles.data?.find(item => item.agent_id === id); if (current) { setProviderId(current.provider_id); setModel(current.model_id); setTokens(current.max_output_tokens); setTemperature(current.temperature ?? ''); setTimeout(current.timeout_seconds); setCost(current.max_cost_usd); setEnabled(current.enabled); } else { setProviderId(''); setModel(''); setTokens(1000); setTemperature(''); setTimeout(60); setCost('1'); setEnabled(false); } }
   if (!token) return null;
-  return <section className="panel"><h2>{tr('Model theo agent', 'Models by agent')}</h2><p>{tr('Cấu hình không cho phép chạy AI; mọi execution vẫn bị chặn.', 'Configuration does not authorize AI execution; execution remains blocked.')}</p>
+  return <section className="panel"><h2>{tr('Model theo agent', 'Models by agent')}</h2><p>{tr('Lưu cấu hình không chạy AI. AI chỉ chạy khi quyền AI toàn cục đang bật và từng task được phê duyệt riêng.', 'Saving a configuration does not run AI. AI runs only while global AI consent is on and each task has its own approval.')}</p>
     {(agents.isLoading || providers.isLoading || profiles.isLoading) && <p>{tr('Đang tải…', 'Loading…')}</p>}
     {(agents.error || providers.error || profiles.error) && <p role="alert">{tr('Không thể tải cấu hình.', 'Unable to load configuration.')}</p>}
     <form onSubmit={event => { event.preventDefault(); void save(); }}>

@@ -1,5 +1,13 @@
 # Known issues
 
+## v29.1.0
+
+- Remembered sign-in sessions are stored in localStorage; use "Remember me" only on
+  a personal device. Rotate `SESSION_SECRET` to revoke every session.
+- The AI stage approval fix is covered by component tests and the existing
+  PostgreSQL API pipeline test; no browser E2E runs a full AI stage against a real
+  backend because CI has no provider.
+
 ## Step 6 v29.0.0 — current known limitations
 
 - No test or CI run contacts a real provider; adapters are verified against
