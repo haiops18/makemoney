@@ -117,7 +117,8 @@ def test_terms_carry_their_evidence_status(client, auth_headers):
     assert post(client, auth_headers, terms, {**rate, 'value_numeric': 3.68}).status_code == 422
     assert post(client, auth_headers, f"/api/v1/campaigns/{other['id']}/programs/{plan['id']}/terms", rate).status_code == 404
     listed = client.get(f"/api/v1/campaigns/{item['id']}/programs", headers=auth_headers).json()
-    assert [term['evidence_status'] for term in listed[0]['terms']] == ['VERIFIED', 'UNVERIFIED', 'UNSOURCED']
+    # SQLite timestamps have one-second precision, so same-second terms have no fixed order here.
+    assert sorted((term['term'], term['evidence_status']) for term in listed[0]['terms']) == [('COMMISSION_RATE', 'UNVERIFIED'), ('COMMISSION_RATE', 'VERIFIED'), ('PAYOUT', 'UNSOURCED')]
     assert post(client, auth_headers, f"/api/v1/campaigns/{item['id']}/programs", {'network': 'SHOPEE', 'name': 'Shopee Affiliate', 'link_hosts': ['shopee.vn']}).status_code == 409
     assert post(client, auth_headers, f"/api/v1/campaigns/{item['id']}/programs", {'network': 'SHOPEE', 'name': 'Wild', 'link_hosts': ['*.shopee.vn']}).status_code == 422
 
