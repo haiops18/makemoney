@@ -649,3 +649,136 @@ class WorkflowEvent(Base):
     metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
+
+
+# Step 7A — campaigns. Level B only: nothing here publishes, fetches or pays.
+class Campaign(Base):
+    __tablename__ = 'campaigns'
+    __table_args__ = (
+        CheckConstraint("status IN ('DRAFT','ACTIVE','PAUSED','ARCHIVED')", name='ck_campaign_status'),
+        CheckConstraint("language IN ('vi','en')", name='ck_campaign_language'),
+        CheckConstraint('max_cost_usd > 0 AND max_cost_usd <= 45', name='ck_campaign_cost'),
+        CheckConstraint('version >= 1', name='ck_campaign_version'),
+        Index('ix_campaigns_status_created', 'status', 'created_at'),
+        Index('ix_campaigns_opportunity', 'opportunity_id'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    opportunity_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('opportunities.id', ondelete='RESTRICT'), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    business_model: Mapped[str] = mapped_column(String(100), nullable=False)
+    niche: Mapped[str | None] = mapped_column(String(200))
+    target_audience: Mapped[str | None] = mapped_column(String(500))
+    goal: Mapped[str | None] = mapped_column(String(2000))
+    language: Mapped[str] = mapped_column(String(5), nullable=False, default='vi')
+    disclosure_text: Mapped[str | None] = mapped_column(String(500))
+    max_cost_usd: Mapped[Any] = mapped_column(Numeric(18, 6), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default='DRAFT')
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class CampaignSource(Base):
+    __tablename__ = 'campaign_sources'
+    __table_args__ = (
+        CheckConstraint("verification_status IN ('UNVERIFIED','VERIFIED','REJECTED')", name='ck_campaign_source_verification'),
+        CheckConstraint("(verification_status = 'UNVERIFIED') = (verified_at IS NULL)", name='ck_campaign_source_verifier'),
+        UniqueConstraint('campaign_id', 'id', name='uq_campaign_source_parent'),
+        Index('ix_campaign_sources_campaign_created', 'campaign_id', 'created_at', 'id'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    campaign_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('campaigns.id', ondelete='RESTRICT'), nullable=False)
+    source_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    source_url: Mapped[str | None] = mapped_column(String(2048))
+    excerpt: Mapped[str] = mapped_column(Text, nullable=False)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    verification_status: Mapped[str] = mapped_column(String(20), nullable=False, default='UNVERIFIED')
+    verified_by: Mapped[str | None] = mapped_column(String(100))
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    verification_note: Mapped[str | None] = mapped_column(String(1000))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class AffiliateProgram(Base):
+    __tablename__ = 'affiliate_programs'
+    __table_args__ = (
+        CheckConstraint("network IN ('SHOPEE','TIKTOK_SHOP','ACCESSTRADE','ECOMOBI','LAZADA','OTHER')", name='ck_affiliate_program_network'),
+        UniqueConstraint('campaign_id', 'id', name='uq_affiliate_program_parent'),
+        UniqueConstraint('campaign_id', 'network', 'name', name='uq_affiliate_program_name'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    campaign_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('campaigns.id', ondelete='RESTRICT'), nullable=False)
+    network: Mapped[str] = mapped_column(String(30), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    join_url: Mapped[str | None] = mapped_column(String(2048))
+    # Owner-entered rules: links must use these hosts and may only add these query keys.
+    link_hosts: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    tracking_param_keys: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    created_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class AffiliateProgramTerm(Base):
+    __tablename__ = 'affiliate_program_terms'
+    __table_args__ = (
+        CheckConstraint("term IN ('JOIN_CONDITIONS','COMMISSION_MODEL','COMMISSION_RATE','COMMISSION_CAP','COOKIE_DAYS','ATTRIBUTION','PAYOUT','REFUND_CANCELLATION','TAX_WITHHOLDING')", name='ck_affiliate_term'),
+        CheckConstraint("unit IN ('NONE','PERCENT','VND','USD','DAYS')", name='ck_affiliate_term_unit'),
+        CheckConstraint("(value_numeric IS NULL) = (unit = 'NONE')", name='ck_affiliate_term_numeric_unit'),
+        ForeignKeyConstraint(['campaign_id', 'program_id'], ['affiliate_programs.campaign_id', 'affiliate_programs.id'], ondelete='RESTRICT'),
+        ForeignKeyConstraint(['campaign_id', 'source_id'], ['campaign_sources.campaign_id', 'campaign_sources.id'], ondelete='RESTRICT'),
+        Index('ix_affiliate_terms_program', 'program_id', 'term', 'created_at'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    campaign_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('campaigns.id', ondelete='RESTRICT'), nullable=False)
+    program_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    term: Mapped[str] = mapped_column(String(40), nullable=False)
+    value_text: Mapped[str] = mapped_column(String(1000), nullable=False)
+    value_numeric: Mapped[Any | None] = mapped_column(Numeric(18, 6))
+    unit: Mapped[str] = mapped_column(String(10), nullable=False, default='NONE')
+    source_id: Mapped[uuid.UUID | None] = mapped_column()
+    created_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class CampaignProduct(Base):
+    __tablename__ = 'campaign_products'
+    __table_args__ = (
+        UniqueConstraint('campaign_id', 'id', name='uq_campaign_product_parent'),
+        ForeignKeyConstraint(['campaign_id', 'price_source_id'], ['campaign_sources.campaign_id', 'campaign_sources.id'], ondelete='RESTRICT'),
+        CheckConstraint('price_text IS NULL OR price_source_id IS NOT NULL', name='ck_campaign_product_price_source'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    campaign_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('campaigns.id', ondelete='RESTRICT'), nullable=False)
+    name: Mapped[str] = mapped_column(String(300), nullable=False)
+    merchant: Mapped[str | None] = mapped_column(String(200))
+    product_url: Mapped[str | None] = mapped_column(String(2048))
+    price_text: Mapped[str | None] = mapped_column(String(100))
+    price_source_id: Mapped[uuid.UUID | None] = mapped_column()
+    notes: Mapped[str | None] = mapped_column(String(2000))
+    created_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class AffiliateLink(Base):
+    __tablename__ = 'affiliate_links'
+    __table_args__ = (
+        CheckConstraint("status IN ('ACTIVE','RETIRED')", name='ck_affiliate_link_status'),
+        CheckConstraint("(status = 'RETIRED') = (retired_at IS NOT NULL)", name='ck_affiliate_link_retired'),
+        ForeignKeyConstraint(['campaign_id', 'program_id'], ['affiliate_programs.campaign_id', 'affiliate_programs.id'], ondelete='RESTRICT'),
+        ForeignKeyConstraint(['campaign_id', 'product_id'], ['campaign_products.campaign_id', 'campaign_products.id'], ondelete='RESTRICT'),
+        Index('uq_affiliate_link_active_url', 'campaign_id', 'final_url', unique=True,
+              postgresql_where=text("status = 'ACTIVE'"), sqlite_where=text("status = 'ACTIVE'")),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    campaign_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('campaigns.id', ondelete='RESTRICT'), nullable=False)
+    program_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    product_id: Mapped[uuid.UUID | None] = mapped_column()
+    label: Mapped[str] = mapped_column(String(200), nullable=False)
+    original_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    tracking_params: Mapped[dict[str, str]] = mapped_column(JSON, nullable=False)
+    final_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default='ACTIVE')
+    created_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased — Step 7A AI Content & Affiliate Factory (target v30.0.0)
+
+- PR1, campaign data with no AI and no external action:
+  - Campaigns are built from an evaluated opportunity and carry an optional, Owner-entered
+    affiliate disclosure (there is no default). Status moves DRAFT → ACTIVE ⇄ PAUSED →
+    ARCHIVED; archived campaigns are read-only. Updates use optimistic versions.
+  - Each campaign has its own sources, which the Owner verifies once. Affiliate programs
+    list their allowed link hosts and tracking keys. Program terms (commission, cap,
+    cookie, payout, cancellation, tax and so on) are append-only and report their
+    evidence status. A product price requires a source.
+  - Affiliate links must be https on an allowed host. The original URL is kept and only
+    allowed tracking keys are appended. Only one active link may exist per final URL.
+    The server never opens a link.
+  - API: `/api/v1/campaigns` (sources, programs, terms, products, links). Every change is
+    idempotent and audited. Migration `20261107_0020`.
+  - UI: a new **Campaigns** page with Overview, Sources, Programs & terms, Products and
+    Affiliate links tabs.
+
 ## v29.2.0 — One-approval workflow auto-run
 
 - Added workflow auto-run for research workflows: one Owner approval ("Approve & run
