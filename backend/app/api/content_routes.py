@@ -23,7 +23,7 @@ from app.api.opportunity_routes import _idempotent
 from app.auth.dependencies import require_owner
 from app.db.models import (
     AffiliateLink, AffiliateProgram, AffiliateProgramTerm, AIInvocation, AIResearchRun, AIResearchSource, BudgetReservation, CampaignProduct,
-    CampaignSource, ContentItem, ContentVersion, Opportunity, TaskDependency, Workflow, WorkflowEvent, WorkflowTask,
+    CampaignSource, ContentCheck, ContentItem, ContentPublishRecord, ContentVersion, Opportunity, TaskDependency, Workflow, WorkflowEvent, WorkflowTask,
 )
 from app.db.session import get_db
 
@@ -95,12 +95,39 @@ class ContentResponse(BaseModel):
     product_id: UUID | None
     affiliate_link_id: UUID
     current_version: VersionResponse
+    decided_by: str | None = None
+    decided_at: datetime | None = None
+    decision_note: str | None = None
     created_at: datetime
     updated_at: datetime
 
 
+class CheckResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    check_name: str
+    result: str
+    method: str
+    note: str
+    evidence: list[str]
+    attested_by: str | None = None
+    attested_at: datetime | None = None
+
+
+class PublishRecordResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    version_no: int
+    channel: str
+    published_url: str
+    published_at: datetime
+    recorded_by: str
+    created_at: datetime
+
+
 class ContentDetail(ContentResponse):
     versions: list[VersionResponse]
+    checks: list[CheckResponse] = Field(default_factory=list)
+    publish_records: list[PublishRecordResponse] = Field(default_factory=list)
 
 
 class UsageLine(BaseModel):
@@ -242,10 +269,14 @@ def create_batch(campaign_id: UUID, body: BatchCreate, response: Response, key: 
 def _content_response(db: Session, item: ContentItem, *, detail: bool = False) -> ContentResponse | ContentDetail:
     versions = list(db.scalars(select(ContentVersion).where(ContentVersion.content_id == item.id).order_by(ContentVersion.version_no)))
     current = next(version for version in versions if version.version_no == item.current_version_no)
-    fields = {c: getattr(item, c) for c in ('id', 'campaign_id', 'batch_run_id', 'content_type', 'language', 'status', 'product_id', 'affiliate_link_id', 'created_at', 'updated_at')}
+    fields = {c: getattr(item, c) for c in ('id', 'campaign_id', 'batch_run_id', 'content_type', 'language', 'status', 'product_id', 'affiliate_link_id',
+                                             'decided_by', 'decided_at', 'decision_note', 'created_at', 'updated_at')}
     fields['current_version'] = VersionResponse.model_validate(current)
     if detail:
-        return ContentDetail(**fields, versions=[VersionResponse.model_validate(version) for version in versions])
+        checks = db.scalars(select(ContentCheck).where(ContentCheck.version_id == current.id).order_by(ContentCheck.check_name))
+        records = db.scalars(select(ContentPublishRecord).where(ContentPublishRecord.content_id == item.id).order_by(ContentPublishRecord.published_at, ContentPublishRecord.id))
+        return ContentDetail(**fields, versions=[VersionResponse.model_validate(version) for version in versions],
+                             checks=[CheckResponse.model_validate(check) for check in checks], publish_records=[PublishRecordResponse.model_validate(record) for record in records])
     return ContentResponse(**fields)
 
 

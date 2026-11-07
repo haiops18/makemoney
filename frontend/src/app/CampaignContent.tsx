@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import AutoRunPanel, { useAutoRun } from './AutoRunPanel';
+import ContentReview from './ContentReview';
 import { linkSchema, type useCampaignApi, useTr } from './campaignApi';
 
 type Api = ReturnType<typeof useCampaignApi>;
@@ -25,6 +26,9 @@ export default function CampaignContent({ api, campaignId, campaignStatus }: { a
   const usage = useQuery({ queryKey: ['campaigns', campaignId, 'usage'], queryFn: async () => usageSchema.parse(await api.request(`/campaigns/${campaignId}/usage`)) });
   const [form, setForm] = useState({ affiliate_link_id: '', types: ['SOCIAL_POST', 'SHORT_CAPTION'] as string[], count: '1', max_cost_usd: '0.5' });
   const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
+  const [opened, setOpened] = useState('');
+  const statusLabel: Record<string, string> = { DRAFT: tr('Nháp', 'Draft'), CHECK_FAILED: tr('Kiểm tra không đạt', 'Checks failed'), IN_REVIEW: tr('Chờ duyệt', 'In review'),
+    APPROVED: tr('Đã duyệt', 'Approved'), REJECTED: tr('Đã từ chối', 'Rejected'), READY_TO_PUBLISH: tr('Sẵn sàng đăng', 'Ready to post'), PUBLISHED: tr('Đã đăng', 'Posted') };
   const activeLinks = links.data?.filter(item => item.status === 'ACTIVE') ?? [];
   const labels: Record<string, string> = { SOCIAL_POST: tr('Bài mạng xã hội', 'Social post'), SHORT_CAPTION: tr('Caption video ngắn', 'Short-video caption'), VIDEO_SCRIPT: tr('Kịch bản video', 'Video script'),
     REVIEW_ARTICLE: tr('Bài đánh giá', 'Review article'), COMPARISON: tr('Bài so sánh', 'Comparison'), CTA_LANDING: tr('CTA / landing', 'CTA / landing') };
@@ -63,10 +67,9 @@ export default function CampaignContent({ api, campaignId, campaignStatus }: { a
     <h3>{tr('Bản nháp nội dung', 'Content drafts')}</h3>
     {content.error && <p role="alert">{tr('Không thể tải nội dung.', 'Unable to load content.')}</p>}
     {content.data?.length === 0 && <p className="empty">{tr('Chưa có bản nháp.', 'No drafts yet.')}</p>}
-    <div className="table">{content.data?.map(item => <details className="row" key={item.id}><summary><b>{item.current_version.title}</b> · {labels[item.content_type] ?? item.content_type} · <span className="badge">{item.status}</span></summary>
-      <p style={{ whiteSpace: 'pre-wrap' }}>{item.current_version.body}</p><p><b>CTA:</b> {item.current_version.cta}</p>{!!item.current_version.hashtags.length && <p className="muted">#{item.current_version.hashtags.join(' #')}</p>}
-      {!!item.current_version.claims.length && <ul aria-label={tr('Các khẳng định', 'Claims')}>{item.current_version.claims.map((claim, index) => <li key={index}><span className={claim.classification === 'FACT' ? 'badge badge-approved' : 'badge badge-pending'}>{claim.classification}</span> {claim.statement}</li>)}</ul>}
-      <p className="muted">{tr('Bản v', 'Version ')}{item.current_version.version_no} · {item.current_version.author_kind === 'AI' ? tr('AI soạn', 'AI draft') : tr('Owner sửa', 'Owner edit')} · {tr('Duyệt và xuất bài có ở bản tiếp theo.', 'Review and export arrive in the next release.')}</p>
+    <div className="table">{content.data?.map(item => <details className="content-item" key={item.id} open={opened === item.id} onToggle={event => { const open = (event.currentTarget as HTMLDetailsElement).open; if (open) setOpened(item.id); else if (opened === item.id) setOpened(''); }}>
+      <summary><b>{item.current_version.title}</b> · {labels[item.content_type] ?? item.content_type} · <span className="badge">{statusLabel[item.status] ?? item.status}</span></summary>
+      {opened === item.id && <ContentReview api={api} campaignId={campaignId} contentId={item.id}/>}
     </details>)}</div>
   </>;
 }

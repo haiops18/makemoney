@@ -816,6 +816,10 @@ class ContentItem(Base):
     language: Mapped[str] = mapped_column(String(5), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default='DRAFT')
     current_version_no: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    # The Owner's latest approve/reject decision on the current version (history is in audit_events).
+    decided_by: Mapped[str | None] = mapped_column(String(100))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decision_note: Mapped[str | None] = mapped_column(String(1000))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -841,4 +845,42 @@ class ContentVersion(Base):
     author_kind: Mapped[str] = mapped_column(String(10), nullable=False)
     invocation_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('ai_invocations.id', ondelete='RESTRICT'))
     author: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+CONTENT_CHECKS = ('LINK_PLACEHOLDER', 'DISCLOSURE', 'CLAIM_EVIDENCE', 'PRICE_CLAIM', 'PLATFORM_POLICY', 'EXTRA_LINKS', 'DUPLICATE', 'MEDIA_RIGHTS', 'LEGAL_ADS_TAX')
+
+
+class ContentCheck(Base):
+    """Result of one check on one immutable version. NEEDS_OWNER becomes PASS only by Owner attestation."""
+    __tablename__ = 'content_checks'
+    __table_args__ = (
+        CheckConstraint("result IN ('PASS','FAIL','NEEDS_OWNER')", name='ck_content_check_result'),
+        CheckConstraint("method IN ('RULE','OWNER')", name='ck_content_check_method'),
+        CheckConstraint("(method = 'OWNER') = (attested_by IS NOT NULL)", name='ck_content_check_attested'),
+        UniqueConstraint('version_id', 'check_name', name='uq_content_check_version'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('content_versions.id', ondelete='RESTRICT'), nullable=False)
+    check_name: Mapped[str] = mapped_column(String(30), nullable=False)
+    result: Mapped[str] = mapped_column(String(20), nullable=False)
+    method: Mapped[str] = mapped_column(String(10), nullable=False, default='RULE')
+    note: Mapped[str] = mapped_column(String(1000), nullable=False)
+    evidence: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    attested_by: Mapped[str | None] = mapped_column(String(100))
+    attested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class ContentPublishRecord(Base):
+    """The Owner's own record that they posted an approved item. The app never posts."""
+    __tablename__ = 'content_publish_records'
+    __table_args__ = (UniqueConstraint('content_id', 'published_url', name='uq_content_publish_url'),)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    content_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('content_items.id', ondelete='RESTRICT'), nullable=False)
+    version_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    channel: Mapped[str] = mapped_column(String(100), nullable=False)
+    published_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    recorded_by: Mapped[str] = mapped_column(String(100), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

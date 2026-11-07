@@ -37,6 +37,27 @@
     the `content_draft` prompt.
   - UI: a **Content** tab with the batch form, the one-approval panel per batch, the
     drafts with their claim labels, and the cost.
+- PR3, Level B review (the app never posts):
+  - Lifecycle: DRAFT → checks → CHECK_FAILED | IN_REVIEW → APPROVED | REJECTED →
+    READY_TO_PUBLISH (export) → PUBLISHED (the Owner's publish record). An Owner edit
+    creates a new immutable OWNER version based on the current one, keeps the AI claims
+    for reference and returns the item to DRAFT. PUBLISHED items cannot be edited.
+  - Rule checks run once per version: link placeholder, disclosure, claim evidence,
+    price/percentage against verified data, restricted phrases (guarantees, unprovable
+    superlatives, health and finance promises), other web addresses, and near-duplicates
+    (3-word shingles, 80%). Media rights and advertising/e-commerce/tax are always
+    NEEDS_OWNER. A FAIL can only be fixed by editing. NEEDS_OWNER becomes PASS only when
+    the Owner confirms it with a note. Approval requires every check to PASS and a note.
+    The system never marks content compliant on its own.
+  - Export returns the text with the stored final link and the campaign disclosure (when
+    one is set and missing from the text), as plain text or Markdown. A retired link
+    blocks export.
+  - Publish records hold the channel, an https post URL and a time that is not in the future.
+    Each URL is recorded only once.
+  - API: `POST /campaigns/{id}/content/{cid}/versions|checks/run|checks/{name}/attest|approve|reject|export|publish-records`.
+    Migration `20261107_0022`. All changes are idempotent and audited.
+  - UI: a review panel per draft (body, claims, version history, checks with Owner
+    confirmation, edit, approve/reject with a note, export and copy, publish record).
 
 ## v29.2.0 — One-approval workflow auto-run
 

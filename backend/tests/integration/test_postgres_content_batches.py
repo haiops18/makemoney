@@ -194,3 +194,39 @@ def test_batch_limits_and_inputs(pg):
     assert _batch(client, base, str(uuid4())).status_code == 409
     batches = client.get(base + '/content-batches', headers=HEADERS).json()
     assert len(batches) == 1 and batches[0]['workflow_status'] == 'DRAFT'
+
+
+@pytest.mark.postgres
+def test_drafted_content_goes_through_level_b_review_to_a_publish_record(pg):
+    client, factory = pg
+    internal, ai = _policies(client)
+    _enable_consent(client, ai)
+    _content_profile(client)
+    _, base, link_id = _campaign(client)
+    current = client.get(base, headers=HEADERS).json()
+    assert client.patch(base, json={'version': current['version'], 'disclosure_text': 'Có link tiếp thị liên kết.'}, headers=key()).status_code == 200
+    _activate(client, base)
+    batch = _batch(client, base, link_id, content_types=['SOCIAL_POST'], count_per_type=1).json()
+    _run_batch(client, factory, batch, FakeContentProvider())
+    item = client.get(base + '/content', headers=HEADERS).json()[0]
+    path = f"{base}/content/{item['id']}"
+    review_key = key()
+    checked = client.post(path + '/checks/run', headers=review_key)
+    assert checked.status_code == 200, checked.text
+    # The FACT claim cites the verified copy; the price check finds 3.68% in verified data.
+    results = {c['check_name']: c['result'] for c in checked.json()['checks']}
+    assert results['CLAIM_EVIDENCE'] == 'PASS' and results['PRICE_CLAIM'] == 'PASS' and checked.json()['status'] == 'IN_REVIEW'
+    assert client.post(path + '/checks/run', headers=review_key).json() == checked.json()  # idempotent replay
+    for name in ('MEDIA_RIGHTS', 'LEGAL_ADS_TAX'):
+        assert client.post(f'{path}/checks/{name}/attest', json={'note': 'Owner confirmed'}, headers=key()).status_code == 200
+    assert client.post(path + '/approve', json={'note': 'Approved for Facebook'}, headers=key()).status_code == 200
+    export_key = key()
+    exported = client.post(path + '/export', json={'format': 'text'}, headers=export_key)
+    assert exported.status_code == 200, exported.text
+    assert SECRET_LINK in exported.json()['text'] and exported.json()['text'].endswith('Có link tiếp thị liên kết.')
+    assert client.post(path + '/export', json={'format': 'text'}, headers=export_key).json() == exported.json()
+    record = {'channel': 'Facebook Page', 'published_url': f'https://facebook.com/posts/{uuid4()}', 'published_at': datetime.now(UTC).isoformat()}
+    assert client.post(path + '/publish-records', json=record, headers=key()).json()['status'] == 'PUBLISHED'
+    assert client.post(path + '/publish-records', json=record, headers=key()).status_code == 409
+    with factory() as db:
+        assert db.scalar(select(func.count()).select_from(AuditEvent).where(AuditEvent.entity_id == UUID(item['id']), AuditEvent.action.like('content.%'))) >= 6
