@@ -1,6 +1,6 @@
 """Verified provider adapters for fixed official endpoints.
 
-An adapter only translates the server-built research request into one provider's
+An adapter only translates the server-built request into one provider's
 wire format and validates the untrusted response. It never authorizes a call.
 Saved custom base URLs (including OPENAI_COMPATIBLE) are not admitted: only the
 official endpoint for each kind can receive a credential.
@@ -11,10 +11,13 @@ from dataclasses import dataclass
 from typing import Callable
 from uuid import UUID
 
+from pydantic import BaseModel
+
 from app.ai_brain.openai_contract import ProviderOutputError, build_request as openai_build_request
 from app.ai_brain.openai_contract import parse_response as openai_parse_response
-from app.ai_brain.openai_contract import research_output_schema, validated_result
-from app.ai_brain.prompts import PromptTemplate, ResearchRequest
+from app.ai_brain.openai_contract import validated_result
+from app.ai_brain.output_contracts import RESEARCH, OutputContract
+from app.ai_brain.prompts import PromptTemplate
 from app.ai_brain.providers import ProviderResult, Usage
 
 _MODEL_ID = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._\-]{0,199}$')
@@ -25,18 +28,18 @@ def _request_id(value: object) -> str | None:
     return value if isinstance(value, str) and 1 <= len(value) <= 200 else None
 
 
-def _schema_instruction() -> str:
+def _schema_instruction(contract: OutputContract) -> str:
     return ('Return exactly one JSON object and nothing else. It must match this JSON schema: '
-            + json.dumps(research_output_schema(), separators=(',', ':')))
+            + json.dumps(contract.schema(), separators=(',', ':')))
 
 
-def _anthropic_build(model: str, prompt: PromptTemplate, request: ResearchRequest, max_output_tokens: int) -> dict:
+def _anthropic_build(model: str, prompt: PromptTemplate, request: BaseModel, max_output_tokens: int, contract: OutputContract = RESEARCH) -> dict:
     if not _MODEL_ID.match(model) or not 1 <= max_output_tokens <= 100000:
         raise ValueError('Invalid model or output limit')
     system, developer, user = prompt.messages(request)
     # Trusted instructions stay in the system field; untrusted evidence remains user content.
     return {'model': model, 'max_tokens': max_output_tokens,
-            'system': f"{system['content']}\n\n{developer['content']}\n\n{_schema_instruction()}",
+            'system': f"{system['content']}\n\n{developer['content']}\n\n{_schema_instruction(contract)}",
             'messages': [{'role': 'user', 'content': user['content']}]}
 
 
@@ -46,7 +49,7 @@ def _strip_fence(text: str) -> str:
     return match.group(1) if match else stripped
 
 
-def _anthropic_parse(raw: object, known: set[UUID], verified: set[UUID]) -> ProviderResult:
+def _anthropic_parse(raw: object, known: set[UUID], verified: set[UUID], contract: OutputContract = RESEARCH, context: dict | None = None) -> ProviderResult:
     if not isinstance(raw, dict):
         raise ProviderOutputError('INVALID_RESPONSE')
     request_id = _request_id(raw.get('id'))
@@ -71,7 +74,7 @@ def _anthropic_parse(raw: object, known: set[UUID], verified: set[UUID]) -> Prov
     texts = [part['text'] for part in content if isinstance(part, dict) and part.get('type') == 'text' and isinstance(part.get('text'), str)]
     if len(texts) != 1 or any(isinstance(part, dict) and part.get('type') == 'tool_use' for part in content):
         raise ProviderOutputError('INVALID_OUTPUT', usage, request_id)
-    return validated_result(_strip_fence(texts[0]), usage, request_id, known, verified)
+    return validated_result(_strip_fence(texts[0]), usage, request_id, known, verified, contract, context)
 
 
 def _gemini_schema(node: object) -> object:
@@ -83,17 +86,17 @@ def _gemini_schema(node: object) -> object:
     return node
 
 
-def _gemini_build(model: str, prompt: PromptTemplate, request: ResearchRequest, max_output_tokens: int) -> dict:
+def _gemini_build(model: str, prompt: PromptTemplate, request: BaseModel, max_output_tokens: int, contract: OutputContract = RESEARCH) -> dict:
     if not _MODEL_ID.match(model) or not 1 <= max_output_tokens <= 100000:
         raise ValueError('Invalid model or output limit')
     system, developer, user = prompt.messages(request)
     return {'systemInstruction': {'parts': [{'text': system['content']}, {'text': developer['content']}]},
             'contents': [{'role': 'user', 'parts': [{'text': user['content']}]}],
             'generationConfig': {'maxOutputTokens': max_output_tokens, 'responseMimeType': 'application/json',
-                                 'responseSchema': _gemini_schema(research_output_schema())}}
+                                 'responseSchema': _gemini_schema(contract.schema())}}
 
 
-def _gemini_parse(raw: object, known: set[UUID], verified: set[UUID]) -> ProviderResult:
+def _gemini_parse(raw: object, known: set[UUID], verified: set[UUID], contract: OutputContract = RESEARCH, context: dict | None = None) -> ProviderResult:
     if not isinstance(raw, dict):
         raise ProviderOutputError('INVALID_RESPONSE')
     request_id = _request_id(raw.get('responseId'))
@@ -129,7 +132,7 @@ def _gemini_parse(raw: object, known: set[UUID], verified: set[UUID]) -> Provide
     texts = [part['text'] for part in parts if isinstance(part, dict) and isinstance(part.get('text'), str) and not part.get('thought')]
     if len(texts) != 1:
         raise ProviderOutputError('INVALID_OUTPUT', usage, request_id)
-    return validated_result(texts[0], usage, request_id, known, verified)
+    return validated_result(texts[0], usage, request_id, known, verified, contract, context)
 
 
 def _model_ids(kind: str, raw: object) -> set[str] | None:
@@ -151,8 +154,8 @@ class ProviderAdapter:
     kind: str
     host: str
     official_bases: tuple[str, ...]
-    build: Callable[[str, PromptTemplate, ResearchRequest, int], dict]
-    parse: Callable[[object, set[UUID], set[UUID]], ProviderResult]
+    build: Callable[..., dict]
+    parse: Callable[..., ProviderResult]
 
     def accepts(self, base_url: str | None) -> bool:
         return base_url is None or base_url.rstrip('/') in self.official_bases

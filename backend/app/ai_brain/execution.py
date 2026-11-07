@@ -18,6 +18,8 @@ from app.ai_brain.accounting import record_outcome
 from app.ai_brain.credentials import decrypt_credential
 from app.ai_brain.network import post_provider_json
 from app.ai_brain.pricing import Pricing
+from app.ai_brain.content_contract import ContentRequest
+from app.ai_brain.output_contracts import CONTENT_DRAFT, contract_for_prompt, contract_named
 from app.ai_brain.prompts import EvidenceInput, PriorStageOutput, PromptTemplate, ResearchRequest
 from app.approvals.service import consume_action_authorization, evaluate_policy
 from app.approvals.service import is_expired
@@ -27,11 +29,14 @@ from app.finance.service import committed_amount, create_reservation
 from app.orchestration.state import TASK_TRANSITIONS, validate_transition
 
 AI_TASK_ROLES = {'AI_RESEARCH_PLAN': 'research', 'AI_MARKET_RESEARCH': 'research', 'AI_COMPETITOR_ANALYSIS': 'research',
-                 'AI_OPPORTUNITY_GENERATION': 'ceo', 'AI_FINANCIAL_ANALYSIS': 'finance', 'AI_RISK_REVIEW': 'auditor', 'AI_RESEARCH_REPORT': 'ceo'}
+                 'AI_OPPORTUNITY_GENERATION': 'ceo', 'AI_FINANCIAL_ANALYSIS': 'finance', 'AI_RISK_REVIEW': 'auditor', 'AI_RESEARCH_REPORT': 'ceo',
+                 'AI_CONTENT_DRAFT': 'content'}
 # Each stage uses its own immutable prompt family; versions are pinned per task.
 AI_TASK_PROMPTS = {'AI_RESEARCH_PLAN': 'research', 'AI_MARKET_RESEARCH': 'market_research', 'AI_COMPETITOR_ANALYSIS': 'competitor_analysis',
                    'AI_OPPORTUNITY_GENERATION': 'opportunity_generation', 'AI_FINANCIAL_ANALYSIS': 'financial_analysis',
-                   'AI_RISK_REVIEW': 'risk_review', 'AI_RESEARCH_REPORT': 'research_report'}
+                   'AI_RISK_REVIEW': 'risk_review', 'AI_RESEARCH_REPORT': 'research_report', 'AI_CONTENT_DRAFT': 'content_draft'}
+# Step 7A content tasks run only on CONTENT runs; research tasks only on RESEARCH runs.
+CONTENT_TASKS = {'AI_CONTENT_DRAFT'}
 MAX_PRIOR_OUTPUTS = 10
 
 
@@ -107,16 +112,30 @@ def prepare_ai_action(db: Session, workflow_id: UUID, task_id: UUID, policy_id: 
     research = db.scalar(select(AIResearchRun).where(AIResearchRun.id == workflow.research_run_id).with_for_update())
     if research is None or research.status != 'DRAFT':
         raise AIExecutionDenied('Research input is unavailable')
+    is_content = task.task_type in CONTENT_TASKS
+    if is_content != (research.kind == 'CONTENT') or (contract_for_prompt(prompt.name) is CONTENT_DRAFT) != is_content:
+        raise AIExecutionDenied('AI task does not match its run kind')
     # Owner-rejected sources are never sent to a provider.
     sources = list(db.scalars(select(AIResearchSource).where(AIResearchSource.research_run_id == research.id, AIResearchSource.verification_status != 'REJECTED')
                               .order_by(AIResearchSource.id).limit(21)))
     if len(sources) > 20:
         raise AIExecutionDenied('Research context exceeds the source limit')
-    request = ResearchRequest(objective=research.objective, target_market=research.target_market, target_customers=research.target_customers,
-                              evidence=[EvidenceInput(source_id=source.id, text=source.excerpt) for source in sources], prior_outputs=_prior_outputs(db, task))
+    output_context = None
+    if is_content:
+        spec = research.content_spec_json or {}
+        try:
+            request = ContentRequest.model_validate({**spec['request'], 'evidence': [
+                {'source_id': str(source.id), 'verification_status': source.verification_status, 'text': source.excerpt} for source in sources]})
+            output_context = {'content_types': list(request.content_types), 'expected_items': len(request.content_types) * request.count_per_type}
+        except (KeyError, TypeError, ValueError):
+            raise AIExecutionDenied('Content batch input is invalid') from None
+    else:
+        request = ResearchRequest(objective=research.objective, target_market=research.target_market, target_customers=research.target_customers,
+                                  evidence=[EvidenceInput(source_id=source.id, text=source.excerpt) for source in sources], prior_outputs=_prior_outputs(db, task))
     template = PromptTemplate(prompt.name, prompt.version, prompt.system_text, prompt.developer_text)
     try:
-        wire = adapter.build(profile.model_id, template, request, profile.max_output_tokens)
+        # Research requests keep the v29 wire format exactly (default research contract).
+        wire = adapter.build(profile.model_id, template, request, profile.max_output_tokens, CONTENT_DRAFT) if is_content else adapter.build(profile.model_id, template, request, profile.max_output_tokens)
         endpoint = adapter.inference_url(profile.model_id)
     except ValueError:
         raise AIExecutionDenied('Model identifier or output limit is invalid for this provider') from None
@@ -137,6 +156,9 @@ def prepare_ai_action(db: Session, workflow_id: UUID, task_id: UUID, policy_id: 
                'estimated_input_tokens': input_ceiling, 'cost_estimate_usd': str(estimate), 'endpoint': endpoint, 'request': wire}
     payload['known_source_ids'] = [str(source.id) for source in sources]
     payload['verified_source_ids'] = [str(source.id) for source in sources if source.verification_status == 'VERIFIED']
+    if is_content:
+        payload['output_contract'] = CONTENT_DRAFT.name
+        payload['output_context'] = output_context
     action = canonical_action('AI_INFERENCE', payload, 'workflow_task', task.id, policy.id, policy.version, 'ONCE')
     return action, action_hash(action)
 
@@ -263,6 +285,10 @@ def dispatch_invocation(factory, execution_id: UUID, lease_token: UUID, *, trans
             raise AIExecutionDenied('Provider adapter has not been verified for this endpoint')
         known_sources = {UUID(value) for value in payload['known_source_ids']}
         verified_sources = {UUID(value) for value in payload['verified_source_ids']}
+        try:
+            contract = contract_named(payload.get('output_contract'))
+        except ValueError:
+            raise AIExecutionDenied('Output contract is unknown') from None
         invocation.status = 'DISPATCHED'
         invocation.started_at = datetime.now(UTC)
         db.add(AuditEvent(actor='ai-worker', action='ai_invocation.dispatched', entity_type='ai_invocation', entity_id=invocation.id,
@@ -278,7 +304,7 @@ def dispatch_invocation(factory, execution_id: UUID, lease_token: UUID, *, trans
             credential = None
         if not 200 <= status < 300:
             raise ProviderOutputError('PROVIDER_HTTP_OUTCOME_UNKNOWN')
-        result = adapter.parse(raw, known_sources, verified_sources)
+        result = adapter.parse(raw, known_sources, verified_sources, contract, payload.get('output_context'))
     except ProviderOutputError as error:
         record_outcome(factory, execution_id, None, error)
         raise

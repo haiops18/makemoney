@@ -165,7 +165,10 @@ class AIResearchRun(Base):
     __table_args__ = (
         CheckConstraint("status IN ('DRAFT')", name='ck_ai_research_run_status'),
         CheckConstraint('max_cost_usd > 0 AND max_cost_usd <= 45', name='ck_ai_research_run_cost'),
+        CheckConstraint("kind IN ('RESEARCH','CONTENT')", name='ck_ai_research_run_kind'),
+        CheckConstraint("(kind = 'CONTENT') = (campaign_id IS NOT NULL) AND (kind = 'CONTENT') = (content_spec_json IS NOT NULL)", name='ck_ai_research_run_content'),
         Index('ix_ai_research_runs_created_at', 'created_at', 'id'),
+        Index('ix_ai_research_runs_campaign', 'campaign_id'),
     )
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     objective: Mapped[str] = mapped_column(Text, nullable=False)
@@ -175,6 +178,10 @@ class AIResearchRun(Base):
     max_cost_usd: Mapped[Any] = mapped_column(Numeric(18, 6), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default='DRAFT', nullable=False)
     opportunity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('opportunities.id', ondelete='RESTRICT'), unique=True)
+    # Step 7A: a CONTENT run is one content batch of a campaign, with a frozen input snapshot.
+    kind: Mapped[str] = mapped_column(String(20), nullable=False, default='RESEARCH', server_default='RESEARCH')
+    campaign_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('campaigns.id', ondelete='RESTRICT'))
+    content_spec_json: Mapped[dict[str, Any] | None] = mapped_column(JSON(none_as_null=True))
     created_by: Mapped[str] = mapped_column(String(100), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -782,3 +789,56 @@ class AffiliateLink(Base):
     created_by: Mapped[str] = mapped_column(String(100), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+CONTENT_STATUSES = ('DRAFT', 'CHECK_FAILED', 'IN_REVIEW', 'APPROVED', 'REJECTED', 'READY_TO_PUBLISH', 'PUBLISHED')
+
+
+class ContentItem(Base):
+    __tablename__ = 'content_items'
+    __table_args__ = (
+        CheckConstraint("status IN ('DRAFT','CHECK_FAILED','IN_REVIEW','APPROVED','REJECTED','READY_TO_PUBLISH','PUBLISHED')", name='ck_content_item_status'),
+        CheckConstraint("content_type IN ('REVIEW_ARTICLE','COMPARISON','VIDEO_SCRIPT','SHORT_CAPTION','SOCIAL_POST','CTA_LANDING')", name='ck_content_item_type'),
+        CheckConstraint("language IN ('vi','en')", name='ck_content_item_language'),
+        CheckConstraint('item_index >= 0 AND current_version_no >= 1', name='ck_content_item_numbers'),
+        UniqueConstraint('source_invocation_id', 'item_index', name='uq_content_item_invocation_index'),
+        UniqueConstraint('campaign_id', 'id', name='uq_content_item_parent'),
+        Index('ix_content_items_campaign_status', 'campaign_id', 'status', 'created_at'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    campaign_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('campaigns.id', ondelete='RESTRICT'), nullable=False)
+    batch_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('ai_research_runs.id', ondelete='RESTRICT'), nullable=False)
+    source_invocation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('ai_invocations.id', ondelete='RESTRICT'), nullable=False)
+    item_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    product_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('campaign_products.id', ondelete='RESTRICT'))
+    affiliate_link_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('affiliate_links.id', ondelete='RESTRICT'), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    language: Mapped[str] = mapped_column(String(5), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default='DRAFT')
+    current_version_no: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class ContentVersion(Base):
+    """Immutable text of one content item version (AI draft or Owner edit)."""
+    __tablename__ = 'content_versions'
+    __table_args__ = (
+        CheckConstraint("author_kind IN ('AI','OWNER')", name='ck_content_version_author'),
+        CheckConstraint("(author_kind = 'AI') = (invocation_id IS NOT NULL)", name='ck_content_version_invocation'),
+        CheckConstraint('version_no >= 1 AND (base_version_no IS NULL OR base_version_no < version_no)', name='ck_content_version_numbers'),
+        UniqueConstraint('content_id', 'version_no', name='uq_content_version_number'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    content_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('content_items.id', ondelete='RESTRICT'), nullable=False)
+    version_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    base_version_no: Mapped[int | None] = mapped_column(Integer)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    hashtags: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    cta: Mapped[str] = mapped_column(String(300), nullable=False)
+    claims: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)
+    author_kind: Mapped[str] = mapped_column(String(10), nullable=False)
+    invocation_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('ai_invocations.id', ondelete='RESTRICT'))
+    author: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

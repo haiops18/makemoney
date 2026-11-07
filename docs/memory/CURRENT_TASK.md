@@ -1,5 +1,21 @@
 # Current task
 
+## Step 7A — 2026-11-07 — PR2 of 4: AI content drafts
+
+PR1 merged as #10 (e2a2dfc). Branch feat/step7a-pr2-content-ai.
+PR2 adds:
+- the output-contract registry (the research wire format is unchanged);
+- the content_draft prompt and contract;
+- content batches as CONTENT runs with frozen snapshots;
+- materializing drafts, campaign usage, and the Content tab.
+Migration: 20261107_0021.
+Local gates:
+- backend: 119 unit tests and 146 PostgreSQL tests;
+- frontend: 52 tests plus lint, typecheck and build;
+- E2E: 8 passed, 1 skipped, in a CI-like run (fresh DB, pytest, then Playwright).
+Note: the Step 6 E2E depends on pytest leaving fewer than 25 providers and the research-role profiles as they were. The content tests create one provider and touch only the content profile.
+Next: PR3 (checks, review, approve or reject, versions, export, publish record).
+
 ## Step 7A — 2026-11-07 — AI Content & Affiliate Factory, PR1 of 4
 
 Branch feat/step7a-content-factory. Plan approved by the Owner (docs/planning/STEP7A_ARCHITECTURE.md §10).
