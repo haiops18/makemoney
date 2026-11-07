@@ -305,6 +305,36 @@ Mỗi lượt nghiên cứu chỉ tạo được **một** cơ hội. Cơ hội 
 cảnh báo. Các nguồn không bị từ chối trở thành bằng chứng của cơ hội. Việc chấm điểm và quyết định vẫn do Owner thực
 hiện ở trang **Cơ hội**.
 
+### 6.1. Chiến dịch affiliate (Step 7A — đang phát triển)
+
+Trang **Chiến dịch** biến một cơ hội đã đánh giá thành chiến dịch affiliate. Ở bước này
+app chỉ **lưu và chuẩn bị** dữ liệu: không tự đăng bài, không mở link, không thanh toán.
+Phần AI soạn nội dung và duyệt nội dung (Level B) sẽ có ở các bản tiếp theo.
+
+1. **Tạo chiến dịch.** Chọn một cơ hội ở trạng thái *đã đánh giá* (cơ hội bị loại hoặc
+   chưa chấm điểm không dùng được), nhập tên, ngách, khách hàng mục tiêu, mục tiêu và trần
+   chi phí AI (tối đa 45 USD).
+2. **Tổng quan.**
+   - Nhập **câu công bố affiliate** nếu muốn. Mặc định không có sẵn câu nào.
+   - Đổi trạng thái: Kích hoạt / Tạm dừng / Lưu trữ. Chiến dịch đã lưu trữ chỉ xem được.
+3. **Nguồn.**
+   - Thêm nguồn kèm đoạn trích và ngày thu thập.
+   - Xác minh hoặc từ chối từng nguồn, kèm ghi chú. Quyết định này không đổi được.
+4. **Chương trình & điều khoản.**
+   - Thêm chương trình (Shopee, TikTok Shop, ACCESSTRADE...) cùng **tên miền link được
+     phép**, ví dụ `s.shopee.vn, shope.ee`, và các **tham số theo dõi** app được thêm vào
+     link, ví dụ `sub_id`.
+   - Ghi các điều khoản như hoa hồng, trần hoa hồng, cookie, thời điểm trả tiền, điều
+     kiện huỷ đơn hay thuế khấu trừ. Nên chọn nguồn cho từng điều khoản.
+   - Mỗi điều khoản có nhãn *Nguồn đã xác minh* / *chưa xác minh* / *Chưa có nguồn*.
+     Chỉ điều khoản có nguồn đã xác minh mới được dùng như sự thật.
+5. **Sản phẩm.** Nếu nhập giá thì bắt buộc chọn nguồn của giá.
+6. **Link affiliate.**
+   - Dán link anh/chị lấy từ trang của sàn. Link phải là `https` và có tên miền nằm trong
+     danh sách được phép.
+   - App giữ nguyên link gốc, chỉ thêm các tham số được phép.
+   - Link không dùng nữa thì bấm *Ngừng dùng*.
+
 ## 7. Theo dõi và đối soát chi phí
 
 Trang **Chi phí AI** hiển thị:

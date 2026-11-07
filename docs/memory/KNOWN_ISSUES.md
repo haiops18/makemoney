@@ -1,5 +1,11 @@
 # Known issues
 
+## Security — open ports (found 2026-11-06, Owner: fix later)
+
+The host has a public IP and iptables `INPUT ACCEPT`. The web (3000) and API (8000) ports
+answer over plain HTTP from the internet, and sign-in has no attempt limit. The Owner chose
+to defer the fix (HTTPS, OTP, rate limiting, loopback binding) until the domain is ready.
+
 ## v29.2.0
 
 - Auto-run is covered by PostgreSQL integration and component tests with fake

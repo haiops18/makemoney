@@ -1,5 +1,12 @@
 # Project status
 
+## sinhloi.online direction and Step 7A plan — 2026-11-07
+
+Owner decision recorded in docs/memory/PRODUCT_DIRECTION.md: product renamed sinhloi.online,
+multi-business, affiliate (Vietnam) first, Level B before Level C, budget policy unchanged.
+Verified: v29.0.0–v29.2.0 released (v29.2.0 at 75f21ec, CI and release PASS). Step 7A
+architecture plan in docs/planning/STEP7A_ARCHITECTURE.md awaits Owner approval; no code yet.
+
 ## v29.2.0 — one-approval workflow auto-run — 2026-11-06
 
 Research workflows can run all stages on one Owner approval (see CHANGELOG). Per-task

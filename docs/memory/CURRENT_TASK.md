@@ -1,5 +1,15 @@
 # Current task
 
+## Step 7A — 2026-11-07 — AI Content & Affiliate Factory, PR1 of 4
+
+Branch feat/step7a-content-factory. Plan approved by the Owner (docs/planning/STEP7A_ARCHITECTURE.md §10).
+PR1 contains the campaign data module, migration 20261107_0020 and the Campaigns page. It has no AI and no external action.
+Local gates:
+- backend: 104 unit tests (SQLite) and 128 on isolated PostgreSQL;
+- frontend: lint, typecheck, 48 tests, build;
+- Playwright: 8 passed, 1 skipped, run in the Playwright 1.64.1 container because host Node is 18.
+Next: PR2 (output-contract registry, content prompts, content batches).
+
 ## v29.2.0 — 2026-11-06 — workflow auto-run
 
 Branch feat/workflow-auto-run. One approval runs every research workflow stage in
