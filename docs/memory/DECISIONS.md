@@ -1,5 +1,14 @@
 # Decisions
 
+## 2026-11-07 — sinhloi.online product direction
+
+Owner decision (docs/memory/PRODUCT_DIRECTION.md): single Owner, multi-business, affiliate
+marketing in Vietnam first, Level B (Owner approves and posts each item) before Level C
+(quota-limited auto-post with Emergency Stop, never on by default). Roadmap after Step 6:
+7A Content & Affiliate Factory, 7B Channel Integration & Auto-posting, 8 Monetization &
+Tracking, 9 Financial Reconciliation, 10 Autonomous Optimization & Production.
+Success is measured by reconciled money, not counts of agents, workflows or tokens.
+
 ## 2026-11-06 — v29.2.0 workflow auto-run
 
 - Owner decision ("bỏ qua bước phê duyệt các task, chỉ có 1 bước phê duyệt chung"):

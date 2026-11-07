@@ -1,5 +1,11 @@
 # Current task
 
+## Step 7A — 2026-11-07 — AI Content & Affiliate Factory (planning)
+
+Plan: docs/planning/STEP7A_ARCHITECTURE.md (target v30.0.0, 4 PRs). Waiting for Owner
+approval of the plan and decisions on the open-port hardening (v29.2.1), first campaign and
+default affiliate disclosure. No code written.
+
 ## v29.2.0 — 2026-11-06 — workflow auto-run
 
 Branch feat/workflow-auto-run. One approval runs every research workflow stage in
