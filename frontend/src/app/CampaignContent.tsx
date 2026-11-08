@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import AutoRunPanel, { useAutoRun } from './AutoRunPanel';
 import ContentReview from './ContentReview';
-import { AccesstradeImport, StandingAttestations } from './CampaignAutopilot';
+import { AccesstradeImport, PostingSchedule, StandingAttestations } from './CampaignAutopilot';
 import { linkSchema, type useCampaignApi, useTr } from './campaignApi';
 
 type Api = ReturnType<typeof useCampaignApi>;
@@ -49,6 +49,7 @@ export default function CampaignContent({ api, campaignId, campaignStatus }: { a
     {usage.data && <p data-testid="campaign-usage">{tr('Chi phí AI (ước tính)', 'AI cost (estimate)')}: {usage.data.calculated_cost} USD · {tr('đang giữ', 'held')} {usage.data.held_amount} USD · {tr('đã phân bổ cho các lô', 'allocated to batches')} {usage.data.batch_limits_total}/{usage.data.max_cost_usd} USD</p>}
     <AccesstradeImport api={api} campaignId={campaignId} editable={campaignStatus !== 'ARCHIVED'}/>
     <StandingAttestations api={api} campaignId={campaignId} editable={campaignStatus !== 'ARCHIVED'}/>
+    <PostingSchedule api={api} campaignId={campaignId} active={campaignStatus === 'ACTIVE'}/>
     {campaignStatus !== 'ACTIVE' ? <p className="muted">{tr('Kích hoạt chiến dịch ở tab Tổng quan để tạo nội dung.', 'Activate the campaign on the Overview tab to create content.')}</p>
       : <form className="panel" onSubmit={event => void create(event)}><h3>{tr('Tạo lô nội dung', 'New content batch')}</h3>
         <label className="field">{tr('Link affiliate', 'Affiliate link')}<select value={form.affiliate_link_id} onChange={event => setForm({ ...form, affiliate_link_id: event.target.value })} required>

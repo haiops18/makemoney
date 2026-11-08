@@ -9,7 +9,8 @@ from datetime import UTC, datetime
 from sqlalchemy import func, select
 
 from app.campaigns.checks import Context, Draft, run_checks
-from app.db.models import AIResearchRun, AIResearchSource, Campaign, CampaignAttestation, ContentCheck, ContentItem, ContentVersion
+from app.ai_brain.content_contract import LINK_PLACEHOLDER
+from app.db.models import AffiliateLink, AIResearchRun, AIResearchSource, Campaign, CampaignAttestation, ContentCheck, ContentItem, ContentVersion
 
 
 def check_context(db, item: ContentItem) -> Context:
@@ -58,3 +59,31 @@ def open_checks(db, item: ContentItem) -> list[str]:
 
 def now() -> datetime:
     return datetime.now(UTC)
+
+
+class PostUnavailable(ValueError):
+    pass
+
+
+def compose_post(db, item: ContentItem, fmt: str = 'text') -> tuple[str, str, bool, int]:
+    """The final post: real link in place of the placeholder, hashtags and the campaign disclosure.
+
+    Returns (text, link_url, disclosure_added, version_no). Raises PostUnavailable if the link was
+    retired or the text has no placeholder.
+    """
+    link = db.get(AffiliateLink, item.affiliate_link_id)
+    if link is None or link.status != 'ACTIVE':
+        raise PostUnavailable('The affiliate link of this content was retired; edit the content or add a new link')
+    version = db.scalar(select(ContentVersion).where(ContentVersion.content_id == item.id, ContentVersion.version_no == item.current_version_no))
+    if LINK_PLACEHOLDER not in version.body and LINK_PLACEHOLDER not in version.cta:
+        raise PostUnavailable('The content has no link placeholder')
+    campaign = db.get(Campaign, item.campaign_id)
+    tags = ' '.join(f'#{tag}' for tag in version.hashtags)
+    disclosure = campaign.disclosure_text
+    add_disclosure = bool(disclosure) and disclosure.casefold() not in f'{version.body}\n{version.cta}'.casefold()
+    parts = [f'# {version.title}' if fmt == 'markdown' else version.title, version.body.replace(LINK_PLACEHOLDER, link.final_url), version.cta.replace(LINK_PLACEHOLDER, link.final_url)]
+    if tags:
+        parts.append(tags)
+    if add_disclosure:
+        parts.append(f'_{disclosure}_' if fmt == 'markdown' else disclosure)
+    return '\n\n'.join(parts), link.final_url, add_disclosure, version.version_no

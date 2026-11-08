@@ -962,3 +962,43 @@ class CampaignAttestation(Base):
     attested_by: Mapped[str] = mapped_column(String(100), nullable=False)
     attested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PostingSchedule(Base):
+    """The Owner's schedule for automatic posting of approved items of one campaign to a Facebook Page."""
+    __tablename__ = 'posting_schedules'
+    __table_args__ = (
+        CheckConstraint('posts_per_day >= 1 AND posts_per_day <= 6', name='ck_posting_schedule_per_day'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    campaign_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('campaigns.id', ondelete='RESTRICT'), nullable=False, unique=True)
+    integration_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('integrations.id', ondelete='RESTRICT'), nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    posts_per_day: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    hours: Mapped[list[int]] = mapped_column(JSON, nullable=False)
+    paused_reason: Mapped[str | None] = mapped_column(String(300))
+    updated_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class ScheduledPost(Base):
+    """One approved content version queued for a slot. A post is attempted at most once."""
+    __tablename__ = 'scheduled_posts'
+    __table_args__ = (
+        CheckConstraint("status IN ('QUEUED','POSTING','POSTED','FAILED','CANCELLED')", name='ck_scheduled_post_status'),
+        CheckConstraint("(status = 'POSTED') = (external_post_id IS NOT NULL)", name='ck_scheduled_post_posted'),
+        Index('uq_scheduled_post_active', 'content_id', unique=True, postgresql_where=text("status IN ('QUEUED','POSTING','POSTED')"),
+              sqlite_where=text("status IN ('QUEUED','POSTING','POSTED')")),
+        Index('ix_scheduled_posts_due', 'status', 'slot_at'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    campaign_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('campaigns.id', ondelete='RESTRICT'), nullable=False)
+    content_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('content_items.id', ondelete='RESTRICT'), nullable=False)
+    version_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    integration_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('integrations.id', ondelete='RESTRICT'), nullable=False)
+    slot_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default='QUEUED')
+    attempted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    external_post_id: Mapped[str | None] = mapped_column(String(100))
+    error: Mapped[str | None] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
