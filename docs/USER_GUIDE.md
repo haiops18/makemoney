@@ -1,4 +1,4 @@
-# Hướng dẫn sử dụng sinhloi.online (v30.0.0)
+# Hướng dẫn sử dụng sinhloi.online (v31.0.0)
 
 Tài liệu dành cho Owner (người vận hành hệ thống). Hướng dẫn đi từ lúc đăng nhập đến khi chạy xong một lượt
 nghiên cứu AI 7 giai đoạn, tạo cơ hội kinh doanh và đối soát chi phí. Tên nút và tên trang trong tài liệu

@@ -1,5 +1,12 @@
 # Project status
 
+## v31.0.0 — Step 7B Autopilot — 2026-11-09
+
+The Owner's original goal: provide tokens, the app finds ways to earn, estimates success and
+income, the Owner approves, the app does the work. Delivered: integrations, discovery with AI
+ranking, ACCESSTRADE products and links, automatic checks, proposals, scheduled Facebook posting
+(Level C after the Owner's approval). Not yet: revenue tracking from ACCESSTRADE orders (Step 8).
+
 ## v30.0.0 — Step 7A AI Content & Affiliate Factory (Level B) — 2026-11-08
 
 Campaigns, content batches drafted by the content agent, Level B review, export and
