@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from app.ai_brain.content_contract import content_output_schema, validate_content
 from app.ai_brain.contracts import research_output_schema, validate_output
+from app.ai_brain.ranking_contract import ranking_output_schema, validate_ranking
 
 
 @dataclass(frozen=True)
@@ -22,9 +23,10 @@ class OutputContract:
 
 RESEARCH = OutputContract('research_output', research_output_schema, lambda raw, known, verified, _context: validate_output(raw, known, verified))
 CONTENT_DRAFT = OutputContract('content_draft', content_output_schema, validate_content)
-CONTRACTS = {RESEARCH.name: RESEARCH, CONTENT_DRAFT.name: CONTENT_DRAFT}
+OPPORTUNITY_RANKING = OutputContract('opportunity_ranking', ranking_output_schema, validate_ranking)
+CONTRACTS = {RESEARCH.name: RESEARCH, CONTENT_DRAFT.name: CONTENT_DRAFT, OPPORTUNITY_RANKING.name: OPPORTUNITY_RANKING}
 # Prompt families whose output is not a research result. Every other family is research.
-PROMPT_CONTRACTS = {'content_draft': CONTENT_DRAFT}
+PROMPT_CONTRACTS = {'content_draft': CONTENT_DRAFT, 'opportunity_ranking': OPPORTUNITY_RANKING}
 
 
 def contract_for_prompt(prompt_name: str) -> OutputContract:
