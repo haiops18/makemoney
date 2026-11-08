@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('real API: Owner stores an integration once and the token never comes back', async ({ page, request }) => {
-  test.skip(!process.env.E2E_BASE_URL, 'Requires isolated runtime with real PostgreSQL');
+  test.skip(!process.env.E2E_STEP6, 'Requires isolated Step 6 Compose runtime (credential encryption key)');
   expect((await request.get('/api/v1/integrations')).status()).toBe(401);
   const password = process.env.E2E_ADMIN_PASSWORD || 'change-me-admin-password';
   await page.goto('/integrations');
