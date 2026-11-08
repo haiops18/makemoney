@@ -884,3 +884,36 @@ class ContentPublishRecord(Base):
     published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     recorded_by: Mapped[str] = mapped_column(String(100), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+INTEGRATION_KINDS = ('SEARCH_TAVILY', 'SEARCH_BRAVE', 'ACCESSTRADE', 'FACEBOOK_PAGE')
+
+
+class Integration(Base):
+    """An Owner account the app may use (search, affiliate network, Facebook Page). The secret is write-only."""
+    __tablename__ = 'integrations'
+    __table_args__ = (
+        CheckConstraint("kind IN ('SEARCH_TAVILY','SEARCH_BRAVE','ACCESSTRADE','FACEBOOK_PAGE')", name='ck_integration_kind'),
+        CheckConstraint("last_check_status IS NULL OR last_check_status IN ('OK','AUTH_FAILED','RATE_LIMITED','PROVIDER_ERROR','INVALID_RESPONSE','UNREACHABLE')",
+                        name='ck_integration_check_status'),
+        CheckConstraint('archived = false OR encrypted_secret IS NULL', name='ck_integration_archived_no_secret'),
+        Index('ix_integrations_kind', 'kind', 'archived'),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    kind: Mapped[str] = mapped_column(String(30), nullable=False)
+    label: Mapped[str] = mapped_column(String(100), nullable=False)
+    config_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    encrypted_secret: Mapped[str | None] = mapped_column(Text())
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_check_status: Mapped[str | None] = mapped_column(String(30))
+    last_check_detail: Mapped[str | None] = mapped_column(String(200))
+    created_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+Index('uq_integrations_active_label', Integration.kind, Integration.label, unique=True,
+      postgresql_where=Integration.archived.is_(False), sqlite_where=Integration.archived.is_(False))

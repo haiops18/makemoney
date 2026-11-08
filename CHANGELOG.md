@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — Step 7B Autopilot (target v31.0.0)
+
+- PR-A, integrations profile (no automatic action):
+  - New **Kết nối** (Integrations) page: the Owner enters once a web search source
+    (Tavily or Brave Search), ACCESSTRADE and a Facebook Page (numeric Page ID and Page
+    access token). Tokens are encrypted on the server, write-only and never returned or
+    logged; removing an integration deletes its token.
+  - "Check connection" sends one request to the official host only (api.tavily.com,
+    api.search.brave.com, api.accesstrade.vn, graph.facebook.com v26.0). Search checks
+    use one paid query and ask first; ACCESSTRADE and Facebook checks are free reads.
+  - API: `/api/v1/integrations` (create, update, archive, test). Idempotent and audited.
+    Migration `20261108_0023`. The pinned HTTPS transport now builds query strings itself.
+
 ## v30.0.0 — 2026-11-08 — Step 7A AI Content & Affiliate Factory (Level B)
 
 - PR1, campaign data with no AI and no external action:

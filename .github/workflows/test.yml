@@ -92,7 +92,7 @@ jobs:
       - run: docker compose -p step6-ci -f compose.step6-test.yml stop worker
       - run: docker compose -p step6-ci -f compose.step6-test.yml exec -T backend timeout 120 python -m pytest -q -o faulthandler_timeout=30
       - run: docker compose -p step6-ci -f compose.step6-test.yml start worker
-      - run: npm ci && npx playwright install --with-deps chromium && npx playwright test e2e/ai-providers.spec.ts
+      - run: npm ci && npx playwright install --with-deps chromium && npx playwright test e2e/ai-providers.spec.ts e2e/integrations.spec.ts
         working-directory: frontend
         env:
           E2E_BASE_URL: http://127.0.0.1:18007

@@ -393,6 +393,22 @@ Bấm vào một bản nháp ở tab **Nội dung** để mở phần duyệt.
 Các luật kiểm tra chỉ là công cụ hỗ trợ, không phải tư vấn pháp lý. Quyết định cuối cùng là
 của anh/chị.
 
+### 6.4. Kết nối tài khoản (Step 7B)
+
+Trang **Kết nối** là nơi anh/chị nhập **một lần** các tài khoản app được dùng thay mình:
+
+| Loại | Dùng để | Cần nhập |
+| --- | --- | --- |
+| Tavily hoặc Brave Search | AI tự tìm cơ hội trên Internet | API key / token |
+| ACCESSTRADE | Lấy sản phẩm, tạo link affiliate (có chiến dịch Shopee), đọc hoa hồng | Access key (pub.accesstrade.vn → Thông tin cá nhân) |
+| Facebook Page | Đăng bài đã duyệt theo lịch | Page ID dạng số và Page access token có quyền `pages_manage_posts` |
+
+- Token được mã hóa ở máy chủ và **không bao giờ hiển thị lại**. Muốn đổi thì bấm *Thay token*.
+- **Kiểm tra kết nối** gửi đúng 1 yêu cầu tới máy chủ chính thức của dịch vụ. Kiểm tra nguồn tìm kiếm
+  tốn 1 lượt tìm kiếm nên app hỏi trước.
+- Lưu kết nối không tự chạy việc gì. Các bước tự tìm cơ hội và tự đăng bài sẽ dùng các kết nối này
+  sau khi anh/chị duyệt.
+
 ## 7. Theo dõi và đối soát chi phí
 
 Trang **Chi phí AI** hiển thị:
