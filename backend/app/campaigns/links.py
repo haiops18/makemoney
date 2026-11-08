@@ -33,7 +33,9 @@ def normalize_keys(keys: list[str]) -> list[str]:
 
 def safe_url(value: str, *, https_only: bool = False) -> str:
     """Syntax check only. Rejects credentials, control characters and non-web schemes."""
-    if len(value) > MAX_URL or any(ord(char) < 33 or ord(char) == 127 for char in value):
+    # Browsers read a backslash as a path separator, so it could move the real host; reject it
+    # together with control and non-ASCII characters.
+    if len(value) > MAX_URL or any(ord(char) < 33 or ord(char) >= 127 or char == '\\' for char in value):
         raise LinkRuleError('Invalid URL')
     try:
         parts = urlsplit(value)
@@ -41,7 +43,7 @@ def safe_url(value: str, *, https_only: bool = False) -> str:
     except ValueError:
         raise LinkRuleError('Invalid URL') from None
     schemes = {'https'} if https_only else {'http', 'https'}
-    if parts.scheme not in schemes or not parts.hostname or parts.username or parts.password:
+    if parts.scheme not in schemes or not parts.hostname or not HOST.match(parts.hostname.rstrip('.')) or '%' in parts.netloc or '@' in parts.netloc:
         raise LinkRuleError('Affiliate links must be https without credentials' if https_only else 'Invalid URL')
     return value
 

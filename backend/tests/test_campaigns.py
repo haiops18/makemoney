@@ -154,7 +154,7 @@ def test_link_composition_rules():
     assert compose('https://shope.ee/x', ['shope.ee'], [], {}) == 'https://shope.ee/x'
     assert compose('https://vn.shopee.vn/p?', ['shopee.vn'], ['sub_id'], {'sub_id': 'a'}) == 'https://vn.shopee.vn/p?sub_id=a'
     assert compose('https://shopee.vn/p', ['shopee.vn'], ['b', 'a'], {'b': '2', 'a': '1'}) == 'https://shopee.vn/p?a=1&b=2'
-    for url in ('https://notshopee.vn/x', 'https://shopee.vn.evil.io/x', 'https://shopee.vn/x y'):
+    for url in ('https://notshopee.vn/x', 'https://shopee.vn.evil.io/x', 'https://shopee.vn/x y', 'https://evil.com\\.shopee.vn/x', 'https://a%2e@shopee.vn/x', 'https://ví.shopee.vn/x'):
         with pytest.raises(LinkRuleError):
             compose(url, ['shopee.vn'], [], {})
     with pytest.raises(LinkRuleError):

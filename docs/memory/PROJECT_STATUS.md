@@ -1,5 +1,12 @@
 # Project status
 
+## v30.0.0 — Step 7A AI Content & Affiliate Factory (Level B) — 2026-11-08
+
+Campaigns, content batches drafted by the content agent, Level B review, export and
+Owner publish records (see CHANGELOG). Nothing is posted by the app. MAJOR version:
+new product capability on top of Step 6. Next roadmap item: Step 7B (channel
+integration and controlled auto-posting), awaiting Owner direction.
+
 ## sinhloi.online direction and Step 7A plan — 2026-11-07
 
 Owner decision recorded in docs/memory/PRODUCT_DIRECTION.md: product renamed sinhloi.online,

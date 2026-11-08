@@ -1,5 +1,15 @@
 # Known issues
 
+## v30.0.0
+
+- No browser E2E runs a content batch through a real AI provider (CI has none);
+  drafting is covered by PostgreSQL integration tests with fake transports, and review,
+  export and publish records by API and component tests.
+- Content checks are rule-based (phrases, numbers, web addresses, 3-word shingles); they
+  assist and never replace the Owner's reading. Media rights and ads/tax are always
+  Owner-confirmed.
+- The app does not track clicks, orders or commissions yet (Step 8).
+
 ## Security — open ports (found 2026-11-06, Owner: fix later)
 
 The host has a public IP and iptables `INPUT ACCEPT`. The web (3000) and API (8000) ports

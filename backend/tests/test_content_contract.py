@@ -36,6 +36,12 @@ def test_valid_output_passes():
     {'body': 'Vào www.example.com {{AFFILIATE_LINK}}'},
     {'body': 'Ghé shopee.vn/abc {{AFFILIATE_LINK}}'},
     {'cta': 'Click bit.ly/x'},
+    {'cta': 'Xem goo.gl/abc'},
+    {'body': 'youtu.be/x {{AFFILIATE_LINK}}'},
+    {'body': 'Vào //evil.xyz/p {{AFFILIATE_LINK}}'},
+    {'body': 'IP 1.2.3.4/x {{AFFILIATE_LINK}}'},
+    {'body': 'hxxps://a {{AFFILIATE_LINK}}'},
+    {'title': 'Ghé Shopee.VN'},
     {'claims': [{'classification': 'FACT', 'statement': 'x', 'source_ids': [str(UNVERIFIED)]}]},
     {'claims': [{'classification': 'FACT', 'statement': 'x', 'source_ids': [str(uuid4())]}]},
     {'claims': [{'classification': 'FACT', 'statement': 'x', 'source_ids': []}]},
@@ -45,6 +51,11 @@ def test_valid_output_passes():
 def test_invalid_items_are_rejected(bad):
     with pytest.raises(ValueError):
         validate_content(output(item(**bad), item('SHORT_CAPTION')), KNOWN, {VERIFIED}, CONTEXT)
+
+
+def test_ordinary_vietnamese_text_is_not_a_web_address():
+    body = 'Giao TP.HCM, giá 199.000đ, hoa hồng 3.68%, size M/L, 1/2 giá, v.v. đẹp lắm.mua ngay {{AFFILIATE_LINK}}'
+    validate_content(output(item(body=body), item('SHORT_CAPTION')), KNOWN, {VERIFIED}, CONTEXT)
 
 
 def test_counts_types_and_lengths_are_enforced():

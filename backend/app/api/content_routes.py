@@ -5,6 +5,7 @@ data, plus a workflow (validation → AI_CONTENT_DRAFT). Creating a batch runs n
 the Owner approves it with the existing one-approval auto-run (or per task), and every
 AI call keeps consent, policy, cost-limit and budget-reservation checks.
 """
+import json
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Annotated, Any
@@ -15,7 +16,7 @@ from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_valida
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.ai_brain.content_contract import CONTENT_TYPES, MAX_ITEMS, ContentRequest, ContentType
+from app.ai_brain.content_contract import _WEB_ADDRESS, CONTENT_TYPES, MAX_ITEMS, ContentRequest, ContentType
 from app.ai_brain.execution import AI_TASK_ROLES
 from app.api.ai_research_routes import _stage_inputs
 from app.api.campaign_routes import IdempotencyKey, _audit, _campaign, _save
@@ -241,6 +242,10 @@ def create_batch(campaign_id: UUID, body: BatchCreate, response: Response, key: 
     request = ContentRequest.model_validate({'language': campaign.language, 'campaign_name': campaign.name, 'niche': campaign.niche, 'target_audience': campaign.target_audience,
                                              'goal': campaign.goal, 'network': program.network, 'program_name': program.name, 'product': product_input, 'terms': terms[:20],
                                              'content_types': body.content_types, 'count_per_type': body.count_per_type})
+    # The model must never see the real link: refuse Owner text that contains it (or any web address).
+    sent = [*(source.excerpt or '' for source in sources), json.dumps(request.model_dump(mode='json'), ensure_ascii=False)]
+    if any(url and url in text for text in sent for url in (link.original_url, link.final_url)) or any(_WEB_ADDRESS.search(text.replace('{{AFFILIATE_LINK}}', '')) for text in sent):
+        raise HTTPException(status_code=409, detail='Campaign text, terms or source excerpts contain a web address; remove links before creating content')
     run.content_spec_json = {'request': request.model_dump(mode='json', exclude={'evidence'}), 'affiliate_link_id': str(link.id),
                              'product_id': str(product.id) if product else None, 'program_id': str(program.id)}
     workflow = Workflow(research_run_id=run.id, opportunity_id=None, name=f'{campaign.name} — content batch', created_by=actor, version=2)

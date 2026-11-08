@@ -1,4 +1,4 @@
-# Hướng dẫn sử dụng AUTO MONEY AI (v29.2.0)
+# Hướng dẫn sử dụng sinhloi.online (v30.0.0)
 
 Tài liệu dành cho Owner (người vận hành hệ thống). Hướng dẫn đi từ lúc đăng nhập đến khi chạy xong một lượt
 nghiên cứu AI 7 giai đoạn, tạo cơ hội kinh doanh và đối soát chi phí. Tên nút và tên trang trong tài liệu
@@ -305,11 +305,11 @@ Mỗi lượt nghiên cứu chỉ tạo được **một** cơ hội. Cơ hội 
 cảnh báo. Các nguồn không bị từ chối trở thành bằng chứng của cơ hội. Việc chấm điểm và quyết định vẫn do Owner thực
 hiện ở trang **Cơ hội**.
 
-### 6.1. Chiến dịch affiliate (Step 7A — đang phát triển)
+### 6.1. Chiến dịch affiliate
 
 Trang **Chiến dịch** biến một cơ hội đã đánh giá thành chiến dịch affiliate. Ở bước này
 app chỉ **lưu và chuẩn bị** dữ liệu: không tự đăng bài, không mở link, không thanh toán.
-Phần AI soạn nội dung và duyệt nội dung (Level B) sẽ có ở các bản tiếp theo.
+AI soạn nội dung ở mục 6.2, duyệt và xuất bài (Level B) ở mục 6.3.
 
 1. **Tạo chiến dịch.** Chọn một cơ hội ở trạng thái *đã đánh giá* (cơ hội bị loại hoặc
    chưa chấm điểm không dùng được), nhập tên, ngách, khách hàng mục tiêu, mục tiêu và trần
@@ -358,6 +358,7 @@ Lưu ý:
 - AI **không thấy link thật**. AI chỉ viết `{{AFFILIATE_LINK}}`; link thật được ghép khi
   xuất bài ở bản sau. Nếu AI tự viết bất kỳ địa chỉ web nào, cả lô bị từ chối và không
   tạo bản nháp nào. Chi phí của lần gọi đó vẫn được ghi lại để đối soát.
+- Link thật chỉ được ghép khi xuất bài (mục 6.3).
 
 ### 6.3. Duyệt nội dung và tự đăng (Level B)
 
@@ -496,5 +497,8 @@ tường lửa chỉ cho các dải IP tin cậy, hoặc truy cập qua SSH tunn
 - Hệ thống không tự thu thập nguồn từ Internet; mọi nguồn do Owner nhập.
 - Ngân sách là kiểm soát nội bộ. Nó không thể ngăn hóa đơn trễ hoặc chi phí phát sinh ngoài hệ thống; hãy đặt thêm
   giới hạn chi tiêu trên trang của provider.
+- Level B: app không tự đăng bài, không theo dõi click/đơn hàng/hoa hồng. Đăng bài tự động có kiểm soát
+  (Step 7B) và theo dõi doanh thu (Step 8) chưa có.
+- Luật kiểm tra nội dung chỉ dựa trên mẫu cố định (cụm từ, số, địa chỉ web); không thay thế việc anh/chị đọc lại.
 - Phiên được ghi nhớ nằm trong bộ nhớ trình duyệt (localStorage). Muốn thu hồi mọi phiên ngay, đổi `SESSION_SECRET`
   trong `.env` rồi khởi động lại backend.

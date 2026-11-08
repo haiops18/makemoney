@@ -16,7 +16,13 @@ ContentType = Literal['REVIEW_ARTICLE', 'COMPARISON', 'VIDEO_SCRIPT', 'SHORT_CAP
 # App limits for a reviewable draft, not platform rules.
 BODY_LIMITS = {'REVIEW_ARTICLE': 8000, 'COMPARISON': 8000, 'VIDEO_SCRIPT': 6000, 'SHORT_CAPTION': 600, 'SOCIAL_POST': 3000, 'CTA_LANDING': 3000}
 MAX_ITEMS = 10
-_WEB_ADDRESS = re.compile(r'(?i)\b(?:https?://|www\.)|\b[a-z0-9-]+\.(?:vn|com|net|org|ee|io|co|shop|link|me|ly)(?:/|\b)')
+# Fail closed: any scheme, protocol-relative or IP address, punycode, a dotted name ending in a
+# common TLD in any case, or any all-lowercase dotted name (catches goo.gl, youtu.be, site.app).
+# Uppercase abbreviations such as TP.HCM and numbers such as 3.68 or 199.000 do not match.
+_WEB_ADDRESS = re.compile(
+    r'(?i:\b[a-z][a-z0-9+.-]{1,9}://|\bwww\.|(?<![:/])//[a-z0-9]|\b\d{1,3}(?:\.\d{1,3}){3}\b|\bxn--'
+    r'|\b[a-z0-9-]+\.(?:vn|com|net|org|ee|io|co|shop|link|me|ly|to|gl|be|app|xyz|info|biz|site|online|store|top|ai|dev|tv|asia)\b)'
+    r'|(?<![\w.@])(?:[a-z0-9-]+\.)+[a-z]{2,24}(?![\w.]*\w)')
 
 
 class TermInput(BaseModel):
