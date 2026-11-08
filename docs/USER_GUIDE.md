@@ -425,6 +425,17 @@ Trang **Kết nối** là nơi anh/chị nhập **một lần** các tài khoả
 
 Mọi con số là **ước tính** của AI từ kết quả tìm kiếm chưa xác minh, không phải cam kết thu nhập.
 
+### 6.6. Lấy sản phẩm ACCESSTRADE và duyệt đề xuất (Step 7B)
+
+1. Ở tab **Nội dung** của chiến dịch, mục **Lấy sản phẩm từ ACCESSTRADE**: nhập nhà bán (ví dụ
+   `shopee`), bấm *Tải sản phẩm*, chọn tối đa 10 sản phẩm rồi bấm *Tạo link*. Tài khoản ACCESSTRADE
+   của anh/chị phải đã được duyệt chiến dịch của nhà bán đó.
+2. Mục **Xác nhận chung cho chiến dịch**: xác nhận một lần quyền dùng hình ảnh và việc tuân thủ
+   quảng cáo/thuế. Các bài soạn sau đó tự qua hai mục này.
+3. Tạo lô nội dung và bấm *Phê duyệt & chạy tự động* như mục 6.2. App tự chạy kiểm tra ngay khi AI
+   soạn xong.
+4. Mở trang **Đề xuất**: bài đã qua hết kiểm tra nằm ở đầu. Đọc lại, nhập ghi chú và bấm **Duyệt**.
+
 ## 7. Theo dõi và đối soát chi phí
 
 Trang **Chi phí AI** hiển thị:

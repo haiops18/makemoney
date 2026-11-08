@@ -11,17 +11,17 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ai_brain.content_contract import BODY_LIMITS, LINK_PLACEHOLDER
+from app.campaigns.review import ensure_checks
 from app.api.campaign_routes import IdempotencyKey, _audit, _campaign, _save
 from app.api.content_routes import ContentDetail, _content_response
 from app.api.opportunity_routes import _idempotent
 from app.auth.dependencies import require_owner
-from app.campaigns.checks import Context, Draft, run_checks
 from app.campaigns.links import LinkRuleError, safe_url
-from app.db.models import AffiliateLink, AIResearchRun, AIResearchSource, ContentCheck, ContentItem, ContentPublishRecord, ContentVersion
+from app.db.models import AffiliateLink, ContentCheck, ContentItem, ContentPublishRecord, ContentVersion
 from app.db.session import get_db
 
 router = APIRouter(prefix='/api/v1/campaigns', dependencies=[Depends(require_owner)], tags=['campaign-review'])
@@ -113,21 +113,6 @@ def _detail(db: Session, item: ContentItem) -> ContentDetail:
     return _content_response(db, item, detail=True)
 
 
-def _check_context(db: Session, item: ContentItem) -> Context:
-    campaign = _campaign(db, item.campaign_id)
-    run = db.get(AIResearchRun, item.batch_run_id)
-    spec = (run.content_spec_json or {}).get('request', {})
-    verified = list(db.scalars(select(AIResearchSource).where(AIResearchSource.research_run_id == run.id, AIResearchSource.verification_status == 'VERIFIED')))
-    texts = [source.excerpt for source in verified]
-    texts += [f"{term['value_text']} {term.get('value_numeric') or ''}" for term in spec.get('terms', []) if term.get('evidence_status') == 'VERIFIED']
-    product = spec.get('product') or {}
-    if product.get('price_text') and product.get('price_evidence_status') == 'VERIFIED':
-        texts.append(product['price_text'])
-    others = db.execute(select(ContentVersion.body).join(ContentItem, (ContentItem.id == ContentVersion.content_id) & (ContentItem.current_version_no == ContentVersion.version_no))
-                        .where(ContentItem.campaign_id == item.campaign_id, ContentItem.id != item.id, ContentItem.status != 'REJECTED')).scalars()
-    return Context(disclosure_text=campaign.disclosure_text, verified_source_ids={str(source.id) for source in verified}, verified_texts=texts, other_bodies=list(others))
-
-
 @router.post('/{campaign_id}/content/{content_id}/versions', response_model=ContentDetail, status_code=201)
 def edit_content(campaign_id: UUID, content_id: UUID, body: VersionCreate, response: Response, key: str = IdempotencyKey, actor: str = Depends(require_owner), db: Session = Depends(get_db)):
     """Owner edit: a new immutable version based on the current one; the item returns to DRAFT."""
@@ -158,15 +143,8 @@ def check_content(campaign_id: UUID, content_id: UUID, response: Response, key: 
         return existing
     item = _item(db, campaign_id, content_id)
     _require(item, 'DRAFT', 'CHECK_FAILED', 'IN_REVIEW')
-    version = _version(db, item)
-    if not db.scalar(select(func.count()).select_from(ContentCheck).where(ContentCheck.version_id == version.id)):
-        draft = Draft(title=version.title, body=version.body, cta=version.cta, hashtags=version.hashtags, claims=version.claims, author_kind=version.author_kind)
-        for result in run_checks(draft, _check_context(db, item)):
-            db.add(ContentCheck(version_id=version.id, check_name=result.check, result=result.result, method='RULE', note=result.note, evidence=result.evidence[:20]))
-        db.flush()
-    failed = db.scalar(select(func.count()).select_from(ContentCheck).where(ContentCheck.version_id == version.id, ContentCheck.result == 'FAIL'))
-    _decide(item, 'CHECK_FAILED' if failed else 'IN_REVIEW')
-    _audit(db, actor, 'content.checked', 'content_item', item.id, version_no=version.version_no, status=item.status)
+    ensure_checks(db, item)
+    _audit(db, actor, 'content.checked', 'content_item', item.id, version_no=item.current_version_no, status=item.status)
     return _save(db, actor, key, 'POST', path, payload, _detail(db, item), 200, response, ContentDetail)
 
 

@@ -29,6 +29,19 @@
     note. Nothing is approved automatically.
   - API: `/api/v1/discovery`, `/discovery/{id}/candidates/{cid}/approve|reject`. Migration
     `20261108_0024`.
+- PR-C, production with ACCESSTRADE and proposals:
+  - Content tab **Lấy sản phẩm từ ACCESSTRADE**: list products (`/v1/datafeeds`, free read),
+    pick up to 10 and the app creates tracked links through `/v1/product_link/create` for an
+    ACCESSTRADE campaign the Owner is approved for (utm_source `sinhloi`). It stores the product,
+    its price as an Owner-imported VERIFIED source with the time, and the link; the link host
+    returned by the official API is added to the campaign's ACCESSTRADE program.
+  - Rule checks now run automatically as soon as the AI drafts an item.
+  - **Xác nhận chung cho chiến dịch**: the Owner confirms media rights and ads/e-commerce/tax
+    once per campaign (revocable); later checks record it as an Owner PASS.
+  - New **Đề xuất** page: items in review, ready ones (every check passed) first, with approve or
+    reject and a note.
+  - API: `/campaigns/{id}/accesstrade/products|import`, `/campaigns/{id}/attestations`,
+    `/proposals`. Migration `20261108_0025`.
 
 ## v30.0.0 — 2026-11-08 — Step 7A AI Content & Affiliate Factory (Level B)
 
