@@ -26,7 +26,7 @@ export default function Discovery({ token }: { token: string }) {
   const { tr } = useTr();
   const api = useCampaignApi(token);
   const list = useQuery({ queryKey: ['campaigns', 'discovery'], enabled: !!token, queryFn: async () => z.array(summarySchema).parse(await api.request('/discovery')) });
-  const integrations = useQuery({ queryKey: ['campaigns', 'integrations'], enabled: !!token, queryFn: async () => integrationSchema.parse(await api.request('/integrations')) });
+  const integrations = useQuery({ queryKey: ['campaigns', 'integrations', 'search'], enabled: !!token, queryFn: async () => integrationSchema.parse(await api.request('/integrations')) });
   const [form, setForm] = useState({ topic: '', target_market: 'Việt Nam', budget_note: '', max_cost_usd: '2', query_count: '4', results_per_query: '4' });
   const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
   const [opened, setOpened] = useState('');
