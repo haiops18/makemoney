@@ -5,10 +5,11 @@ from uuid import UUID
 
 from sqlalchemy import select, text
 
+from app.ai_brain.content_contract import ContentDraftOutput
 from app.ai_brain.openai_contract import ProviderOutputError
 from app.ai_brain.pricing import Pricing
 from app.ai_brain.providers import ProviderResult
-from app.db.models import AIInvocation, AIModelPrice, AuditEvent, BudgetAccount, BudgetReservation, CostRecord, UsageRecord
+from app.db.models import AIInvocation, AIModelPrice, AIResearchRun, AuditEvent, BudgetAccount, BudgetReservation, ContentItem, ContentVersion, CostRecord, UsageRecord
 
 
 def record_outcome(factory, execution_id: UUID, result: ProviderResult | None, error: ProviderOutputError | None) -> bool:
@@ -46,6 +47,8 @@ def record_outcome(factory, execution_id: UUID, result: ProviderResult | None, e
         invocation.status = 'SUCCEEDED' if result else ('FAILED' if usage else 'USAGE_UNKNOWN')
         if result:
             invocation.output_json = result.payload.model_dump(mode='json')
+            if isinstance(result.payload, ContentDraftOutput):
+                _materialize_content(db, invocation, result.payload)
         if usage is not None:
             price = db.get(AIModelPrice, invocation.price_id)
             pricing = Pricing(price.model_id, price.version, price.effective_at.replace(tzinfo=UTC) if price.effective_at.tzinfo is None else price.effective_at, Decimal(price.input_per_million), Decimal(price.output_per_million))
@@ -73,3 +76,26 @@ def record_outcome(factory, execution_id: UUID, result: ProviderResult | None, e
                           detail={'execution_id': str(execution_id), 'status': invocation.status, 'usage_known': usage is not None,
                                   'error_code': invocation.error_code, 'charge_confirmed': False}))
     return True
+
+
+def _materialize_content(db, invocation: AIInvocation, output: ContentDraftOutput) -> None:
+    """Create one DRAFT content item and its AI version 1 per output item, in the outcome transaction.
+
+    record_outcome runs once per DISPATCHED invocation; the unique (invocation, index) key
+    additionally guarantees a replay can never duplicate drafts.
+    """
+    run = db.get(AIResearchRun, invocation.research_run_id)
+    spec = run.content_spec_json if run is not None and run.kind == 'CONTENT' else None
+    if not spec:
+        raise ValueError('Content output without a content batch')
+    language = spec['request']['language']
+    for index, item in enumerate(output.items):
+        content = ContentItem(campaign_id=run.campaign_id, batch_run_id=run.id, source_invocation_id=invocation.id, item_index=index,
+                              product_id=UUID(spec['product_id']) if spec.get('product_id') else None, affiliate_link_id=UUID(spec['affiliate_link_id']), content_type=item.content_type,
+                              language=language, status='DRAFT', current_version_no=1)
+        db.add(content)
+        db.flush()
+        db.add(ContentVersion(content_id=content.id, version_no=1, title=item.title, body=item.body, hashtags=item.hashtags, cta=item.cta,
+                              claims=[claim.model_dump(mode='json') for claim in item.claims], author_kind='AI', invocation_id=invocation.id, author='content-agent'))
+        db.add(AuditEvent(actor='ai-worker', action='content.drafted', entity_type='content_item', entity_id=content.id,
+                          detail={'campaign_id': str(run.campaign_id), 'batch_run_id': str(run.id), 'invocation_id': str(invocation.id), 'content_type': item.content_type}))

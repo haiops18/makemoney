@@ -43,7 +43,7 @@ class PromptTemplate:
     system: str
     developer: str
 
-    def messages(self, request: ResearchRequest) -> list[dict[str, str]]:
+    def messages(self, request: BaseModel) -> list[dict[str, str]]:
         if not all((self.name.strip(), self.version.strip(), self.system.strip(), self.developer.strip())):
             raise ValueError('Versioned prompt instructions are required')
         # Untrusted evidence and the Owner request are serialized as one user

@@ -91,14 +91,15 @@ def _run(db: Session, run_id: UUID, lock: bool = False) -> AIResearchRun:
     if lock:
         statement = statement.with_for_update()
     run = db.scalar(statement)
-    if run is None:
+    # Content batches (Step 7A) are managed from their campaign, never from the research page.
+    if run is None or run.kind != 'RESEARCH':
         raise HTTPException(status_code=404, detail='Research draft not found')
     return run
 
 
 @router.get('', response_model=list[ResearchResponse])
 def list_research(limit: int = Query(default=25, ge=1, le=100), offset: int = Query(default=0, ge=0), db: Session = Depends(get_db)):
-    return list(db.scalars(select(AIResearchRun).order_by(AIResearchRun.created_at.desc(), AIResearchRun.id).offset(offset).limit(limit)))
+    return list(db.scalars(select(AIResearchRun).where(AIResearchRun.kind == 'RESEARCH').order_by(AIResearchRun.created_at.desc(), AIResearchRun.id).offset(offset).limit(limit)))
 
 
 @router.post('', response_model=ResearchResponse, status_code=201)

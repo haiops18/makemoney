@@ -17,6 +17,7 @@ from app.api.ai_prompt_routes import router as ai_prompt_router
 from app.api.ai_control_routes import router as ai_control_router
 from app.api.ai_usage_routes import router as ai_usage_router
 from app.api.campaign_routes import router as campaign_router
+from app.api.content_routes import router as content_router
 from app.core.config import get_settings
 
 @asynccontextmanager
@@ -40,6 +41,7 @@ app.include_router(ai_prompt_router)
 app.include_router(ai_control_router)
 app.include_router(ai_usage_router)
 app.include_router(campaign_router)
+app.include_router(content_router)
 
 
 @app.get("/", include_in_schema=False)

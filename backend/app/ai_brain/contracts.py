@@ -37,3 +37,18 @@ def validate_output(raw: object, known_sources: set[UUID], verified_sources: set
         if finding.classification == 'FACT' and not references <= verified_sources:
             raise ValueError('A fact requires verified sources')
     return result
+
+
+def research_output_schema() -> dict:
+    """Strict JSON schema for research prompts; server validation still applies."""
+    finding_schema = {
+        'type': 'object', 'additionalProperties': False,
+        'properties': {'classification': {'type': 'string', 'enum': ['FACT', 'ESTIMATE', 'HYPOTHESIS', 'UNKNOWN']},
+                       'statement': {'type': 'string'}, 'source_ids': {'type': 'array', 'items': {'type': 'string'}},
+                       'assumptions': {'type': 'array', 'items': {'type': 'string'}}},
+        'required': ['classification', 'statement', 'source_ids', 'assumptions'],
+    }
+    schema = {'type': 'object', 'additionalProperties': False,
+              'properties': {'summary': {'type': 'string'}, 'findings': {'type': 'array', 'items': finding_schema}},
+              'required': ['summary', 'findings']}
+    return schema

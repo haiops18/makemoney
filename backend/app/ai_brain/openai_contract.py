@@ -6,8 +6,11 @@ has authorized an action and reserved sufficient budget. A result is untrusted.
 import json
 from uuid import UUID
 
-from app.ai_brain.contracts import ResearchOutput, validate_output
-from app.ai_brain.prompts import PromptTemplate, ResearchRequest
+from pydantic import BaseModel
+
+from app.ai_brain.contracts import research_output_schema  # noqa: F401  (re-exported)
+from app.ai_brain.output_contracts import RESEARCH, OutputContract
+from app.ai_brain.prompts import PromptTemplate
 from app.ai_brain.providers import ProviderResult, Usage
 
 
@@ -17,40 +20,25 @@ class ProviderOutputError(ValueError):
         self.code, self.usage, self.request_id = code, usage, request_id
 
 
-def research_output_schema() -> dict:
-    """Strict JSON schema shared by every verified adapter; server validation still applies."""
-    finding_schema = {
-        'type': 'object', 'additionalProperties': False,
-        'properties': {'classification': {'type': 'string', 'enum': ['FACT', 'ESTIMATE', 'HYPOTHESIS', 'UNKNOWN']},
-                       'statement': {'type': 'string'}, 'source_ids': {'type': 'array', 'items': {'type': 'string'}},
-                       'assumptions': {'type': 'array', 'items': {'type': 'string'}}},
-        'required': ['classification', 'statement', 'source_ids', 'assumptions'],
-    }
-    schema = {'type': 'object', 'additionalProperties': False,
-              'properties': {'summary': {'type': 'string'}, 'findings': {'type': 'array', 'items': finding_schema}},
-              'required': ['summary', 'findings']}
-    return schema
-
-
-def validated_result(text: str, usage: Usage, request_id: str | None, known_sources: set[UUID], verified_sources: set[UUID]) -> ProviderResult:
+def validated_result(text: str, usage: Usage, request_id: str | None, known_sources: set[UUID], verified_sources: set[UUID],
+                     contract: OutputContract = RESEARCH, context: dict | None = None) -> ProviderResult:
     if len(text) > 1000000:
         raise ProviderOutputError('INVALID_OUTPUT', usage, request_id)
     try:
-        validated: ResearchOutput = validate_output(json.loads(text), known_sources, verified_sources)
+        validated = contract.validate(json.loads(text), known_sources, verified_sources, context or {})
     except (ValueError, TypeError, RecursionError):
         raise ProviderOutputError('OUTPUT_VALIDATION_FAILED', usage, request_id) from None
     return ProviderResult(payload=validated, usage=usage, provider_request_id=request_id)
 
 
-def build_request(model: str, prompt: PromptTemplate, request: ResearchRequest, max_output_tokens: int) -> dict:
+def build_request(model: str, prompt: PromptTemplate, request: BaseModel, max_output_tokens: int, contract: OutputContract = RESEARCH) -> dict:
     if not model.strip() or len(model) > 200 or not 1 <= max_output_tokens <= 100000:
         raise ValueError('Invalid model or output limit')
-    schema = research_output_schema()
     return {'model': model, 'input': prompt.messages(request), 'max_output_tokens': max_output_tokens,
-            'store': False, 'text': {'format': {'type': 'json_schema', 'name': 'research_output', 'strict': True, 'schema': schema}}}
+            'store': False, 'text': {'format': {'type': 'json_schema', 'name': contract.name, 'strict': True, 'schema': contract.schema()}}}
 
 
-def parse_response(raw: object, known_sources: set[UUID], verified_sources: set[UUID]) -> ProviderResult:
+def parse_response(raw: object, known_sources: set[UUID], verified_sources: set[UUID], contract: OutputContract = RESEARCH, context: dict | None = None) -> ProviderResult:
     if not isinstance(raw, dict):
         raise ProviderOutputError('INVALID_RESPONSE')
     request_id = raw.get('id') if isinstance(raw.get('id'), str) and 1 <= len(raw['id']) <= 200 else None
@@ -80,4 +68,4 @@ def parse_response(raw: object, known_sources: set[UUID], verified_sources: set[
                 texts.append(part['text'])
     if len(texts) != 1:
         raise ProviderOutputError('INVALID_OUTPUT', usage, request_id)
-    return validated_result(texts[0], usage, request_id, known_sources, verified_sources)
+    return validated_result(texts[0], usage, request_id, known_sources, verified_sources, contract, context)

@@ -335,6 +335,31 @@ Phần AI soạn nội dung và duyệt nội dung (Level B) sẽ có ở các b
    - App giữ nguyên link gốc, chỉ thêm các tham số được phép.
    - Link không dùng nữa thì bấm *Ngừng dùng*.
 
+### 6.2. AI soạn nội dung cho chiến dịch
+
+**Chuẩn bị một lần:** ở *Cài đặt → cấu hình model cho agent*, bật profile cho agent
+**content** (Content Agent). Cách làm giống mục 4.3, và agent cần có giá model đang hiệu lực.
+
+1. Kích hoạt chiến dịch ở tab **Tổng quan**. Chiến dịch cần ít nhất 1 nguồn không bị từ
+   chối và 1 link đang dùng.
+2. Ở tab **Nội dung**, tạo lô:
+   - chọn link affiliate;
+   - chọn loại nội dung: bài mạng xã hội, caption video ngắn, kịch bản video, bài đánh
+     giá, bài so sánh, CTA/landing;
+   - chọn số bài mỗi loại (tối đa 10 bài một lô);
+   - nhập trần chi phí của lô. Tổng trần các lô không được vượt trần của chiến dịch.
+3. Bấm **Phê duyệt & chạy tự động** ở lô vừa tạo. Bước duyệt giống mục 5.4.
+4. Bản nháp hiện ở mục *Bản nháp nội dung*. Mỗi khẳng định được gắn nhãn **FACT** (có
+   nguồn đã xác minh), **ESTIMATE** hoặc **HYPOTHESIS**.
+
+Lưu ý:
+- Lô nội dung dùng một **bản chụp** dữ liệu của chiến dịch lúc tạo lô: nguồn, điều khoản
+  mới nhất, sản phẩm và link. Sửa chiến dịch sau đó không làm thay đổi lô đã tạo.
+- AI **không thấy link thật**. AI chỉ viết `{{AFFILIATE_LINK}}`; link thật được ghép khi
+  xuất bài ở bản sau. Nếu AI tự viết bất kỳ địa chỉ web nào, cả lô bị từ chối và không
+  tạo bản nháp nào. Chi phí của lần gọi đó vẫn được ghi lại để đối soát.
+- Duyệt, sửa và xuất bài sẽ có ở bản tiếp theo.
+
 ## 7. Theo dõi và đối soát chi phí
 
 Trang **Chi phí AI** hiển thị:

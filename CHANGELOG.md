@@ -17,6 +17,26 @@
     idempotent and audited. Migration `20261107_0020`.
   - UI: a new **Campaigns** page with Overview, Sources, Programs & terms, Products and
     Affiliate links tabs.
+- PR2, AI content drafts (Level B, nothing is published):
+  - A **content batch** freezes the campaign's non-rejected sources, the latest program
+    terms (with evidence status), the product and the chosen link into a CONTENT run.
+    Its workflow is validation followed by `AI_CONTENT_DRAFT` (the `content` agent).
+    Batch limits must fit within the campaign AI cost limit. Creating a batch runs nothing.
+  - It runs on the existing one-approval auto-run (or per-task approval), with consent,
+    policy, cost-limit and budget-reservation checks on every call.
+  - The model never sees the affiliate URL. It writes `{{AFFILIATE_LINK}}`, and output that
+    contains any web address, an unknown source, an unverified FACT, the wrong item count
+    or type, or an over-long body is rejected.
+  - An output-contract registry selects the schema and validator per prompt family.
+    Research requests and action payloads are byte-identical to v29.
+  - Valid output becomes DRAFT content items with an immutable AI version 1, in the same
+    transaction as the usage record. A unique (invocation, index) key prevents duplicates.
+  - Campaign usage by batch and by agent. Content batches are hidden from the research page.
+  - API: `GET|POST /campaigns/{id}/content-batches`, `GET /campaigns/{id}/content[/{cid}]`,
+    `GET /campaigns/{id}/usage`. Migration `20261107_0021` adds the content tables and
+    the `content_draft` prompt.
+  - UI: a **Content** tab with the batch form, the one-approval panel per batch, the
+    drafts with their claim labels, and the cost.
 
 ## v29.2.0 — One-approval workflow auto-run
 

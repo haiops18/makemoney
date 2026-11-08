@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { type Campaign, campaignSchema, type useCampaignApi, useTr } from './campaignApi';
+import CampaignContent from './CampaignContent';
 import { CampaignLinks, CampaignProducts, CampaignPrograms, CampaignSources } from './CampaignSetup';
 
 type Api = ReturnType<typeof useCampaignApi>;
-const TABS = ['overview', 'sources', 'programs', 'products', 'links'] as const;
+const TABS = ['overview', 'sources', 'programs', 'products', 'links', 'content'] as const;
 type Tab = typeof TABS[number];
 const NEXT: Record<Campaign['status'], Campaign['status'][]> = { DRAFT: ['ACTIVE', 'ARCHIVED'], ACTIVE: ['PAUSED', 'ARCHIVED'], PAUSED: ['ACTIVE', 'ARCHIVED'], ARCHIVED: [] };
 
 export default function CampaignDetail({ api, campaign }: { api: Api; campaign: Campaign }) {
   const { tr } = useTr();
   const [tab, setTab] = useState<Tab>('overview');
-  const labels: Record<Tab, string> = { overview: tr('Tổng quan', 'Overview'), sources: tr('Nguồn', 'Sources'), programs: tr('Chương trình & điều khoản', 'Programs & terms'), products: tr('Sản phẩm', 'Products'), links: tr('Link affiliate', 'Affiliate links') };
+  const labels: Record<Tab, string> = { overview: tr('Tổng quan', 'Overview'), sources: tr('Nguồn', 'Sources'), programs: tr('Chương trình & điều khoản', 'Programs & terms'), products: tr('Sản phẩm', 'Products'), links: tr('Link affiliate', 'Affiliate links'), content: tr('Nội dung', 'Content') };
   const readOnly = campaign.status === 'ARCHIVED';
   return <section className="panel" aria-labelledby="campaign-detail-title">
     <h2 id="campaign-detail-title">{campaign.name} <span className="badge">{campaign.status}</span></h2>
@@ -24,6 +25,7 @@ export default function CampaignDetail({ api, campaign }: { api: Api; campaign: 
       {tab === 'programs' && <CampaignPrograms api={api} campaignId={campaign.id} readOnly={readOnly}/>}
       {tab === 'products' && <CampaignProducts api={api} campaignId={campaign.id} readOnly={readOnly}/>}
       {tab === 'links' && <CampaignLinks api={api} campaignId={campaign.id} readOnly={readOnly}/>}
+      {tab === 'content' && <CampaignContent api={api} campaignId={campaign.id} campaignStatus={campaign.status}/>}
     </div>
   </section>;
 }
