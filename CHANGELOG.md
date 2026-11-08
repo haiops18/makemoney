@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — Step 7A AI Content & Affiliate Factory (target v30.0.0)
+## v30.0.0 — 2026-11-08 — Step 7A AI Content & Affiliate Factory (Level B)
 
 - PR1, campaign data with no AI and no external action:
   - Campaigns are built from an evaluated opportunity and carry an optional, Owner-entered
@@ -58,6 +58,19 @@
     Migration `20261107_0022`. All changes are idempotent and audited.
   - UI: a review panel per draft (body, claims, version history, checks with Owner
     confirmation, edit, approve/reject with a note, export and copy, publish record).
+- PR4, release: E2E now activates a campaign and creates a content batch through the UI
+  (no AI call), security review of the Step 7A code, documentation and version 30.0.0.
+  Upgrade: pull, rebuild and restart; migrations 0020–0022 run on backend start.
+- Security review fixes before release:
+  - The "no web address" rule for AI output and the EXTRA_LINKS check now catch any
+    scheme, protocol-relative and IP addresses, punycode, short-link domains (goo.gl,
+    youtu.be, amzn.to…) and any lowercase dotted name. Uppercase abbreviations (TP.HCM)
+    and numbers (3.68%, 199.000đ) still pass.
+  - Link and URL validation rejects backslashes, `%`/`@` in the host part and non-ASCII
+    host names, so a link cannot pass the host allowlist and open another site.
+  - A content batch is refused when campaign text, terms or source excerpts contain a web
+    address or the real link, so the model can never receive it.
+  - The campaign AI cost limit cannot be lowered below what batches already hold.
 
 ## v29.2.0 — One-approval workflow auto-run
 

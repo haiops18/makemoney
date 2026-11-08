@@ -1,5 +1,13 @@
 # Session history
 
+## 2026-11-07 → 2026-11-08 — Step 7A, v30.0.0
+
+Owner renamed the product sinhloi.online and set Step 7A (AI Content & Affiliate
+Factory, Level B). First campaign: Shopee women's fashion on Facebook/Reels; no default
+disclosure; security hardening deferred. Delivered in 4 PRs (#10 campaigns, #11 AI
+drafts, #12 review/export/publish records, PR4 release). The auto-mode classifier
+blocked Claude's first merge of #11; the Owner then told Claude to merge itself.
+
 ## 2026-11-06 — v29.2.0 workflow auto-run
 
 Owner's workflow was RUNNING but its first task waited for a pending per-task

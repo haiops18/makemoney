@@ -4,6 +4,20 @@ Owner guide (Vietnamese): [docs/USER_GUIDE.md](docs/USER_GUIDE.md). It covers
 sign-in, provider/price/agent setup, running the seven AI stages, promotion and
 cost reconciliation.
 
+## v30.0.0 — Step 7A AI Content & Affiliate Factory (Level B)
+
+- **Campaigns** turn an evaluated opportunity into an affiliate campaign with its own
+  verified sources, program terms, products and https affiliate links on allowed hosts.
+- **Content batches** freeze the campaign data and run the `content` agent on the
+  existing one-approval auto-run, under consent, policy, cost-limit and budget checks.
+  The model only sees `{{AFFILIATE_LINK}}`; output with any web address is rejected.
+- **Level B review**: rule checks (link, disclosure, claim evidence, prices, restricted
+  phrases, other links, duplicates) plus Owner-confirmed media-rights and ads/tax checks,
+  versioned Owner edits, approve/reject with a note, export with the real link, and the
+  Owner's publish records. The app never posts, pays or contacts anyone.
+- Migrations `20261107_0020`–`20261107_0022` (forward only). See CHANGELOG and
+  docs/USER_GUIDE.md §6.1–6.3.
+
 ## v29.2.0 — one-approval auto-run
 
 - Research workflows: **Approve & run automatically** approves the whole plan once;

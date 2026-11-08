@@ -1,8 +1,8 @@
 # Roadmap
 
 Owner direction 2026-11-07 (docs/memory/PRODUCT_DIRECTION.md): product sinhloi.online.
-Step 6 RELEASED v29.0.0–v29.2.0. NEXT: Step 7A AI Content & Affiliate Factory (plan in
-docs/planning/STEP7A_ARCHITECTURE.md, target v30.0.0), then 7B Channel Integration &
+Step 6 RELEASED v29.0.0–v29.2.0. Step 7A AI Content & Affiliate Factory = v30.0.0
+(plan in docs/planning/STEP7A_ARCHITECTURE.md). NEXT: 7B Channel Integration &
 Controlled Auto-posting, 8 Monetization & Tracking, 9 Financial Reconciliation,
 10 Autonomous Optimization & Production.
 

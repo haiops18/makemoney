@@ -59,6 +59,17 @@ test('real API: Owner builds a Level B affiliate campaign without any external a
   await page.getByRole('button', { name: 'Lưu link' }).click();
   await expect(page.getByText('https://s.shopee.vn/AbC123?sub_id=reels01')).toBeVisible();
 
+  await page.getByRole('tab', { name: 'Tổng quan' }).click();
+  await page.getByRole('button', { name: 'Kích hoạt', exact: true }).click();
+  await expect(page.getByText('Đã đổi trạng thái.')).toBeVisible();
+  await page.getByRole('tab', { name: 'Nội dung' }).click();
+  await page.getByRole('combobox', { name: /^Link affiliate/ }).selectOption({ label: 'Váy maxi' });
+  await page.getByLabel('Trần chi phí của lô (USD)').fill('0.2');
+  await page.getByRole('button', { name: 'Tạo lô 2 bài' }).click();
+  await expect(page.getByText(/Đã tạo lô nội dung/)).toBeVisible();
+  await expect(page.getByText(/1 nguồn · 0 bài đã soạn/)).toBeVisible();
+  await expect(page.getByText('Chưa có bản nháp.')).toBeVisible();
+
   await page.setViewportSize({ width: 375, height: 812 });
   await expect(page.getByRole('tab', { name: 'Link affiliate' })).toBeVisible();
   await page.setViewportSize({ width: 1440, height: 900 });

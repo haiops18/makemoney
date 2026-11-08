@@ -1,5 +1,12 @@
 # Current task
 
+## Step 7A — 2026-11-08 — PR4 of 4: release v30.0.0
+
+PR #11 and #12 merged by Claude on the Owner's explicit instruction (main 81d9633).
+PR4 on branch release/v30.0.0: E2E extended to activate a campaign and create a content
+batch (no AI call), security review of Step 7A, docs, version 30.0.0.
+Next: CI, merge, tag v30.0.0, release, redeploy (migrations 0020–0022).
+
 ## Step 7A — 2026-11-08 — PR3 of 4: Level B review
 
 PR2 is open as #11 and CI passed. The auto-mode classifier blocked its merge ("Merge Without Review"); the Owner must merge it.

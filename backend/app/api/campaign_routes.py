@@ -4,11 +4,12 @@ Level B only. The server never opens a source, product or affiliate URL, never p
 and never pays. Every change is idempotent and audited.
 """
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -19,7 +20,7 @@ from app.api.campaign_schemas import (
 from app.api.opportunity_routes import _idempotent, _store_idempotency
 from app.auth.dependencies import require_owner
 from app.campaigns.links import LinkRuleError, compose
-from app.db.models import AffiliateLink, AffiliateProgram, AffiliateProgramTerm, AuditEvent, Campaign, CampaignProduct, CampaignSource, Opportunity
+from app.db.models import AffiliateLink, AffiliateProgram, AffiliateProgramTerm, AIResearchRun, AuditEvent, Campaign, CampaignProduct, CampaignSource, Opportunity
 from app.db.session import get_db
 
 router = APIRouter(prefix='/api/v1/campaigns', dependencies=[Depends(require_owner)], tags=['campaigns'])
@@ -126,6 +127,10 @@ def update_campaign(campaign_id: UUID, body: CampaignUpdate, response: Response,
     for required in ('name', 'language', 'max_cost_usd'):
         if required in changes and changes[required] is None:
             raise HTTPException(status_code=422, detail=f'{required} cannot be empty')
+    if 'max_cost_usd' in changes:
+        committed = db.scalar(select(func.coalesce(func.sum(AIResearchRun.max_cost_usd), 0)).where(AIResearchRun.campaign_id == campaign.id, AIResearchRun.kind == 'CONTENT'))
+        if Decimal(changes['max_cost_usd']) < Decimal(committed):
+            raise HTTPException(status_code=409, detail=f'The AI cost limit cannot be below the {committed} USD already allocated to content batches')
     if changes.get('disclosure_text') == '':
         changes['disclosure_text'] = None
     for field, value in changes.items():

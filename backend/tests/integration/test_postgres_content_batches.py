@@ -192,6 +192,12 @@ def test_batch_limits_and_inputs(pg):
     assert _batch(client, base, link_id).status_code == 201
     assert _batch(client, base, link_id, max_cost_usd='0.6').status_code == 409  # 1 + 0.6 > 1.5
     assert _batch(client, base, str(uuid4())).status_code == 409
+    current = client.get(base, headers=HEADERS).json()
+    assert client.patch(base, json={'version': current['version'], 'max_cost_usd': '0.5'}, headers=key()).status_code == 409  # below the 1 USD allocated
+    # Owner text that would carry a web address (or the real link) to the model blocks the batch.
+    client.post(base + '/sources', json={'source_name': 'Ghi chú', 'excerpt': f'Link của tôi {SECRET_LINK}', 'captured_at': datetime.now(UTC).isoformat()}, headers=key())
+    blocked = _batch(client, base, link_id, max_cost_usd='0.4')
+    assert blocked.status_code == 409 and 'web address' in blocked.json()['detail']
     batches = client.get(base + '/content-batches', headers=HEADERS).json()
     assert len(batches) == 1 and batches[0]['workflow_status'] == 'DRAFT'
 
