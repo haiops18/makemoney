@@ -31,3 +31,19 @@ test('real API: Owner stores an integration once and the token never comes back'
   await expect(page.getByText('Đã xóa kết nối.')).toBeVisible();
   await expect(page.getByTestId('integration').filter({ hasText: label })).toHaveCount(0);
 });
+
+test('real API: discovery asks for a search source before any paid search', async ({ page, request }) => {
+  test.skip(!process.env.E2E_STEP6, 'Requires isolated Step 6 Compose runtime (credential encryption key)');
+  expect((await request.get('/api/v1/discovery')).status()).toBe(401);
+  const password = process.env.E2E_ADMIN_PASSWORD || 'change-me-admin-password';
+  await page.goto('/discovery');
+  await page.getByLabel('Tên đăng nhập Admin').fill('admin');
+  await page.getByLabel('Mật khẩu Admin').fill(password);
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Tìm cách kiếm tiền' })).toBeVisible();
+  await page.getByLabel('Lĩnh vực / chủ đề').fill('thời trang nữ');
+  await expect(page.getByRole('link', { name: 'Kết nối Tavily hoặc Brave Search' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Tìm cơ hội' })).toBeDisabled();
+  await page.getByRole('link', { name: 'Kết nối Tavily hoặc Brave Search' }).click();
+  await expect(page.getByRole('heading', { name: 'Kết nối tài khoản' })).toBeVisible();
+});

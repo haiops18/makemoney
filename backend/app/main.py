@@ -20,6 +20,7 @@ from app.api.campaign_routes import router as campaign_router
 from app.api.content_routes import router as content_router
 from app.api.content_review_routes import router as content_review_router
 from app.api.integration_routes import router as integration_router
+from app.api.discovery_routes import router as discovery_router
 from app.core.config import get_settings
 
 @asynccontextmanager
@@ -46,6 +47,7 @@ app.include_router(campaign_router)
 app.include_router(content_router)
 app.include_router(content_review_router)
 app.include_router(integration_router)
+app.include_router(discovery_router)
 
 
 @app.get("/", include_in_schema=False)

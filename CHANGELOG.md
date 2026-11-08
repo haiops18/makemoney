@@ -12,6 +12,23 @@
     use one paid query and ask first; ACCESSTRADE and Facebook checks are free reads.
   - API: `/api/v1/integrations` (create, update, archive, test). Idempotent and audited.
     Migration `20261108_0023`. The pinned HTTPS transport now builds query strings itself.
+- PR-B, discovery (the app finds ways to earn):
+  - New **Tìm cơ hội** page: the Owner enters a field. With the Owner's click (one paid query
+    each, confirmed first), the app runs 1–6 web searches through the connected search
+    source and stores every result as an UNVERIFIED source (title, URL, snippet).
+  - It creates a DISCOVERY workflow: the seven existing research stages plus a new
+    **opportunity ranking** stage (CEO agent, prompt `opportunity_ranking`). The Owner approves
+    the whole AI run once with the existing auto-run, under consent, policy, cost-limit and
+    budget checks.
+  - The ranking returns 3–8 ideas with estimated monthly income (low/base/high, VND),
+    startup and monthly cost, weeks to first income, hours per week, likelihood, risks,
+    assumptions and Opportunity Engine scores. Output with a web address, unknown sources,
+    unordered ranges or duplicates is rejected. Ideas are ranked by base income × likelihood.
+  - **Duyệt hướng này** (with a note) creates the opportunity, its evidence and an evaluation
+    with the AI scores, so a campaign can be created from it right away. Rejecting records the
+    note. Nothing is approved automatically.
+  - API: `/api/v1/discovery`, `/discovery/{id}/candidates/{cid}/approve|reject`. Migration
+    `20261108_0024`.
 
 ## v30.0.0 — 2026-11-08 — Step 7A AI Content & Affiliate Factory (Level B)
 

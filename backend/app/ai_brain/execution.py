@@ -19,7 +19,7 @@ from app.ai_brain.credentials import decrypt_credential
 from app.ai_brain.network import post_provider_json
 from app.ai_brain.pricing import Pricing
 from app.ai_brain.content_contract import ContentRequest
-from app.ai_brain.output_contracts import CONTENT_DRAFT, contract_for_prompt, contract_named
+from app.ai_brain.output_contracts import CONTENT_DRAFT, OPPORTUNITY_RANKING, RESEARCH, contract_for_prompt, contract_named
 from app.ai_brain.prompts import EvidenceInput, PriorStageOutput, PromptTemplate, ResearchRequest
 from app.approvals.service import consume_action_authorization, evaluate_policy
 from app.approvals.service import is_expired
@@ -30,13 +30,15 @@ from app.orchestration.state import TASK_TRANSITIONS, validate_transition
 
 AI_TASK_ROLES = {'AI_RESEARCH_PLAN': 'research', 'AI_MARKET_RESEARCH': 'research', 'AI_COMPETITOR_ANALYSIS': 'research',
                  'AI_OPPORTUNITY_GENERATION': 'ceo', 'AI_FINANCIAL_ANALYSIS': 'finance', 'AI_RISK_REVIEW': 'auditor', 'AI_RESEARCH_REPORT': 'ceo',
-                 'AI_CONTENT_DRAFT': 'content'}
+                 'AI_CONTENT_DRAFT': 'content', 'AI_OPPORTUNITY_RANKING': 'ceo'}
 # Each stage uses its own immutable prompt family; versions are pinned per task.
 AI_TASK_PROMPTS = {'AI_RESEARCH_PLAN': 'research', 'AI_MARKET_RESEARCH': 'market_research', 'AI_COMPETITOR_ANALYSIS': 'competitor_analysis',
                    'AI_OPPORTUNITY_GENERATION': 'opportunity_generation', 'AI_FINANCIAL_ANALYSIS': 'financial_analysis',
-                   'AI_RISK_REVIEW': 'risk_review', 'AI_RESEARCH_REPORT': 'research_report', 'AI_CONTENT_DRAFT': 'content_draft'}
+                   'AI_RISK_REVIEW': 'risk_review', 'AI_RESEARCH_REPORT': 'research_report', 'AI_CONTENT_DRAFT': 'content_draft',
+                   'AI_OPPORTUNITY_RANKING': 'opportunity_ranking'}
 # Step 7A content tasks run only on CONTENT runs; research tasks only on RESEARCH runs.
 CONTENT_TASKS = {'AI_CONTENT_DRAFT'}
+RANKING_TASKS = {'AI_OPPORTUNITY_RANKING'}
 MAX_PRIOR_OUTPUTS = 10
 
 
@@ -113,7 +115,9 @@ def prepare_ai_action(db: Session, workflow_id: UUID, task_id: UUID, policy_id: 
     if research is None or research.status != 'DRAFT':
         raise AIExecutionDenied('Research input is unavailable')
     is_content = task.task_type in CONTENT_TASKS
-    if is_content != (research.kind == 'CONTENT') or (contract_for_prompt(prompt.name) is CONTENT_DRAFT) != is_content:
+    is_ranking = task.task_type in RANKING_TASKS
+    expected = CONTENT_DRAFT if is_content else OPPORTUNITY_RANKING if is_ranking else RESEARCH
+    if is_content != (research.kind == 'CONTENT') or (is_ranking and research.kind != 'DISCOVERY') or contract_for_prompt(prompt.name) is not expected:
         raise AIExecutionDenied('AI task does not match its run kind')
     # Owner-rejected sources are never sent to a provider.
     sources = list(db.scalars(select(AIResearchSource).where(AIResearchSource.research_run_id == research.id, AIResearchSource.verification_status != 'REJECTED')
@@ -135,7 +139,7 @@ def prepare_ai_action(db: Session, workflow_id: UUID, task_id: UUID, policy_id: 
     template = PromptTemplate(prompt.name, prompt.version, prompt.system_text, prompt.developer_text)
     try:
         # Research requests keep the v29 wire format exactly (default research contract).
-        wire = adapter.build(profile.model_id, template, request, profile.max_output_tokens, CONTENT_DRAFT) if is_content else adapter.build(profile.model_id, template, request, profile.max_output_tokens)
+        wire = adapter.build(profile.model_id, template, request, profile.max_output_tokens, expected) if expected is not RESEARCH else adapter.build(profile.model_id, template, request, profile.max_output_tokens)
         endpoint = adapter.inference_url(profile.model_id)
     except ValueError:
         raise AIExecutionDenied('Model identifier or output limit is invalid for this provider') from None
@@ -159,6 +163,8 @@ def prepare_ai_action(db: Session, workflow_id: UUID, task_id: UUID, policy_id: 
     if is_content:
         payload['output_contract'] = CONTENT_DRAFT.name
         payload['output_context'] = output_context
+    elif is_ranking:
+        payload['output_contract'] = OPPORTUNITY_RANKING.name
     action = canonical_action('AI_INFERENCE', payload, 'workflow_task', task.id, policy.id, policy.version, 'ONCE')
     return action, action_hash(action)
 

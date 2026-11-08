@@ -409,6 +409,22 @@ Trang **Kết nối** là nơi anh/chị nhập **một lần** các tài khoả
 - Lưu kết nối không tự chạy việc gì. Các bước tự tìm cơ hội và tự đăng bài sẽ dùng các kết nối này
   sau khi anh/chị duyệt.
 
+### 6.5. Tìm cơ hội tự động (Step 7B)
+
+1. Kết nối một nguồn tìm kiếm ở trang **Kết nối** (mục 6.4) và bật profile AI cho các agent
+   research, ceo, finance, auditor (mục 4.3).
+2. Mở trang **Tìm cơ hội**, nhập lĩnh vực (ví dụ *thời trang nữ*), thị trường, điều kiện của
+   anh/chị và trần chi phí AI. Bấm **Tìm cơ hội**: app hỏi trước vì mỗi lượt tìm kiếm tính phí.
+3. App lưu các kết quả tìm được làm nguồn **chưa xác minh**, rồi tạo workflow 8 bước AI. Bấm
+   **Phê duyệt & chạy tự động** một lần để AI phân tích và xếp hạng.
+4. Bảng xếp hạng cho mỗi hướng: thu nhập/tháng ước tính (thấp – cao, mức cơ sở), khả năng đạt
+   mức cơ sở, vốn và chi phí tháng, thời gian tới khoản thu đầu tiên, số giờ mỗi tuần, rủi ro và
+   giả định. Hướng được xếp theo *thu nhập cơ sở × khả năng*.
+5. Nhập ghi chú rồi bấm **Duyệt hướng này**: app tạo cơ hội đã chấm điểm (dùng điểm AI đề xuất)
+   để anh/chị tạo chiến dịch ngay. **Bỏ qua** để loại hướng đó.
+
+Mọi con số là **ước tính** của AI từ kết quả tìm kiếm chưa xác minh, không phải cam kết thu nhập.
+
 ## 7. Theo dõi và đối soát chi phí
 
 Trang **Chi phí AI** hiển thị:

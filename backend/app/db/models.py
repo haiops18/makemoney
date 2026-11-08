@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, JSON, Numeric, String, Text, UniqueConstraint, func, text
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, JSON, Numeric, String, Text, UniqueConstraint, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -165,7 +165,7 @@ class AIResearchRun(Base):
     __table_args__ = (
         CheckConstraint("status IN ('DRAFT')", name='ck_ai_research_run_status'),
         CheckConstraint('max_cost_usd > 0 AND max_cost_usd <= 45', name='ck_ai_research_run_cost'),
-        CheckConstraint("kind IN ('RESEARCH','CONTENT')", name='ck_ai_research_run_kind'),
+        CheckConstraint("kind IN ('RESEARCH','CONTENT','DISCOVERY')", name='ck_ai_research_run_kind'),
         CheckConstraint("(kind = 'CONTENT') = (campaign_id IS NOT NULL) AND (kind = 'CONTENT') = (content_spec_json IS NOT NULL)", name='ck_ai_research_run_content'),
         Index('ix_ai_research_runs_created_at', 'created_at', 'id'),
         Index('ix_ai_research_runs_campaign', 'campaign_id'),
@@ -917,3 +917,32 @@ class Integration(Base):
 
 Index('uq_integrations_active_label', Integration.kind, Integration.label, unique=True,
       postgresql_where=Integration.archived.is_(False), sqlite_where=Integration.archived.is_(False))
+
+
+class DiscoveryCandidate(Base):
+    """An AI-ranked money-making idea from a discovery run. Figures are estimates; only the Owner decides."""
+    __tablename__ = 'discovery_candidates'
+    __table_args__ = (
+        UniqueConstraint('source_invocation_id', 'item_index', name='uq_discovery_candidate_item'),
+        CheckConstraint("status IN ('PROPOSED','APPROVED','REJECTED')", name='ck_discovery_candidate_status'),
+        CheckConstraint("(status = 'PROPOSED') = (decided_at IS NULL)", name='ck_discovery_candidate_decision'),
+        CheckConstraint("status = 'APPROVED' OR opportunity_id IS NULL", name='ck_discovery_candidate_opportunity'),
+        CheckConstraint('success_likelihood >= 0 AND success_likelihood <= 100 AND income_base_vnd >= 0 AND rank_value >= 0', name='ck_discovery_candidate_values'),
+        Index('ix_discovery_candidates_run_rank', 'run_id', 'rank_value'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('ai_research_runs.id', ondelete='RESTRICT'), nullable=False)
+    source_invocation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('ai_invocations.id', ondelete='RESTRICT'), nullable=False)
+    item_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    business_model: Mapped[str] = mapped_column(String(30), nullable=False)
+    income_base_vnd: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    success_likelihood: Mapped[int] = mapped_column(Integer, nullable=False)
+    rank_value: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    data_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default='PROPOSED', nullable=False)
+    decided_by: Mapped[str | None] = mapped_column(String(100))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decision_note: Mapped[str | None] = mapped_column(String(1000))
+    opportunity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('opportunities.id', ondelete='RESTRICT'), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

@@ -9,7 +9,9 @@ from app.ai_brain.content_contract import ContentDraftOutput
 from app.ai_brain.openai_contract import ProviderOutputError
 from app.ai_brain.pricing import Pricing
 from app.ai_brain.providers import ProviderResult
-from app.db.models import AIInvocation, AIModelPrice, AIResearchRun, AuditEvent, BudgetAccount, BudgetReservation, ContentItem, ContentVersion, CostRecord, UsageRecord
+from app.ai_brain.ranking_contract import RankingOutput, rank_value
+from app.db.models import (AIInvocation, AIModelPrice, AIResearchRun, AuditEvent, BudgetAccount, BudgetReservation, ContentItem, ContentVersion, CostRecord,
+                           DiscoveryCandidate, UsageRecord)
 
 
 def record_outcome(factory, execution_id: UUID, result: ProviderResult | None, error: ProviderOutputError | None) -> bool:
@@ -49,6 +51,8 @@ def record_outcome(factory, execution_id: UUID, result: ProviderResult | None, e
             invocation.output_json = result.payload.model_dump(mode='json')
             if isinstance(result.payload, ContentDraftOutput):
                 _materialize_content(db, invocation, result.payload)
+            elif isinstance(result.payload, RankingOutput):
+                _materialize_candidates(db, invocation, result.payload)
         if usage is not None:
             price = db.get(AIModelPrice, invocation.price_id)
             pricing = Pricing(price.model_id, price.version, price.effective_at.replace(tzinfo=UTC) if price.effective_at.tzinfo is None else price.effective_at, Decimal(price.input_per_million), Decimal(price.output_per_million))
@@ -99,3 +103,19 @@ def _materialize_content(db, invocation: AIInvocation, output: ContentDraftOutpu
                               claims=[claim.model_dump(mode='json') for claim in item.claims], author_kind='AI', invocation_id=invocation.id, author='content-agent'))
         db.add(AuditEvent(actor='ai-worker', action='content.drafted', entity_type='content_item', entity_id=content.id,
                           detail={'campaign_id': str(run.campaign_id), 'batch_run_id': str(run.id), 'invocation_id': str(invocation.id), 'content_type': item.content_type}))
+
+
+def _materialize_candidates(db, invocation: AIInvocation, output: RankingOutput) -> None:
+    """Store ranked ideas as PROPOSED candidates in the outcome transaction (unique per invocation and index)."""
+    run = db.get(AIResearchRun, invocation.research_run_id)
+    if run is None or run.kind != 'DISCOVERY':
+        raise ValueError('Ranking output without a discovery run')
+    for index, candidate in enumerate(output.candidates):
+        data = candidate.model_dump(mode='json')
+        item = DiscoveryCandidate(run_id=run.id, source_invocation_id=invocation.id, item_index=index, title=candidate.title, business_model=candidate.business_model,
+                                  income_base_vnd=candidate.income_base_vnd, success_likelihood=candidate.success_likelihood, rank_value=rank_value(data),
+                                  data_json=data, status='PROPOSED')
+        db.add(item)
+        db.flush()
+        db.add(AuditEvent(actor='ai-worker', action='discovery.candidate_proposed', entity_type='discovery_candidate', entity_id=item.id,
+                          detail={'run_id': str(run.id), 'invocation_id': str(invocation.id), 'rank_value': item.rank_value}))
