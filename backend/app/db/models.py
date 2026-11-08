@@ -946,3 +946,19 @@ class DiscoveryCandidate(Base):
     decision_note: Mapped[str | None] = mapped_column(String(1000))
     opportunity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('opportunities.id', ondelete='RESTRICT'), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class CampaignAttestation(Base):
+    """The Owner's standing confirmation for a check that always needs the Owner (media rights, ads/tax), per campaign."""
+    __tablename__ = 'campaign_attestations'
+    __table_args__ = (
+        CheckConstraint("check_name IN ('MEDIA_RIGHTS','LEGAL_ADS_TAX')", name='ck_campaign_attestation_check'),
+        Index('uq_campaign_attestation_active', 'campaign_id', 'check_name', unique=True, postgresql_where=text('revoked_at IS NULL'), sqlite_where=text('revoked_at IS NULL')),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    campaign_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('campaigns.id', ondelete='RESTRICT'), nullable=False)
+    check_name: Mapped[str] = mapped_column(String(30), nullable=False)
+    note: Mapped[str] = mapped_column(String(1000), nullable=False)
+    attested_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    attested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

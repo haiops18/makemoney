@@ -27,10 +27,10 @@ class FakeContentProvider:
         assert url == 'https://api.openai.com/v1/responses'
         user = json.loads(request['input'][-1]['content'])
         verified = [item['source_id'] for item in user['evidence'] if item['verification_status'] == 'VERIFIED']
-        items = [{'content_type': kind, 'title': f'{kind} title', 'body': f'Váy maxi cho mùa hè. Xem tại {{{{AFFILIATE_LINK}}}}' + (' https://evil.example' if self.inject_url else ''),
+        items = [{'content_type': kind, 'title': f'{kind} title', 'body': f'Mẫu {kind} số {n} góc nhìn riêng. Váy maxi cho mùa hè. Xem tại {{{{AFFILIATE_LINK}}}}' + (' https://evil.example' if self.inject_url else ''),
                   'hashtags': ['thoitrang', 'vay'], 'cta': 'Mua ngay', 'claims': [{'classification': 'FACT', 'statement': 'Hoa hồng thời trang nữ 3.68%', 'source_ids': verified[:1]},
                                                                                  {'classification': 'HYPOTHESIS', 'statement': 'Có thể hợp với dân văn phòng', 'source_ids': []}]}
-                 for kind in user['content_types'] for _ in range(user['count_per_type'])]
+                 for kind in user['content_types'] for n in range(user['count_per_type'])]
         text = json.dumps({'summary': 'Angle: summer dresses for office workers', 'items': items})
         return 200, {'id': f'resp-{uuid4()}', 'status': 'completed', 'usage': {'input_tokens': 300, 'output_tokens': 200},
                      'output': [{'type': 'message', 'content': [{'type': 'output_text', 'text': text}]}]}
@@ -135,7 +135,7 @@ def test_one_approval_drafts_content_without_exposing_the_link(pg):
 
     items = client.get(base + '/content', headers=HEADERS).json()
     assert sorted(item['content_type'] for item in items) == ['SHORT_CAPTION', 'SOCIAL_POST']
-    assert all(item['status'] == 'DRAFT' and item['current_version']['author_kind'] == 'AI' and item['affiliate_link_id'] == link_id for item in items)
+    assert all(item['status'] == 'IN_REVIEW' and item['current_version']['author_kind'] == 'AI' and item['affiliate_link_id'] == link_id for item in items)
     assert '{{AFFILIATE_LINK}}' in items[0]['current_version']['body']
     detail = client.get(f"{base}/content/{items[0]['id']}", headers=HEADERS).json()
     assert [version['version_no'] for version in detail['versions']] == [1]

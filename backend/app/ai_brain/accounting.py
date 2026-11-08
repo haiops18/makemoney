@@ -10,6 +10,7 @@ from app.ai_brain.openai_contract import ProviderOutputError
 from app.ai_brain.pricing import Pricing
 from app.ai_brain.providers import ProviderResult
 from app.ai_brain.ranking_contract import RankingOutput, rank_value
+from app.campaigns.review import ensure_checks
 from app.db.models import (AIInvocation, AIModelPrice, AIResearchRun, AuditEvent, BudgetAccount, BudgetReservation, ContentItem, ContentVersion, CostRecord,
                            DiscoveryCandidate, UsageRecord)
 
@@ -103,6 +104,11 @@ def _materialize_content(db, invocation: AIInvocation, output: ContentDraftOutpu
                               claims=[claim.model_dump(mode='json') for claim in item.claims], author_kind='AI', invocation_id=invocation.id, author='content-agent'))
         db.add(AuditEvent(actor='ai-worker', action='content.drafted', entity_type='content_item', entity_id=content.id,
                           detail={'campaign_id': str(run.campaign_id), 'batch_run_id': str(run.id), 'invocation_id': str(invocation.id), 'content_type': item.content_type}))
+    db.flush()
+    # Rule checks run right away so items that pass every check are proposed to the Owner.
+    for content in db.scalars(select(ContentItem).where(ContentItem.source_invocation_id == invocation.id).order_by(ContentItem.item_index)):
+        status = ensure_checks(db, content)
+        db.add(AuditEvent(actor='ai-worker', action='content.checked', entity_type='content_item', entity_id=content.id, detail={'version_no': 1, 'status': status, 'automatic': True}))
 
 
 def _materialize_candidates(db, invocation: AIInvocation, output: RankingOutput) -> None:
