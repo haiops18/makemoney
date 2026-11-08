@@ -47,7 +47,7 @@ export function useCampaignApi(token: string) {
     }
     return response.json();
   }, [base, token]);
-  const send = useCallback(async <T,>(method: 'POST' | 'PATCH', path: string, body: unknown, schema: z.ZodType<T>): Promise<T> => {
+  const send = useCallback(async <T,>(method: 'POST' | 'PATCH' | 'PUT', path: string, body: unknown, schema: z.ZodType<T>): Promise<T> => {
     const serialized = JSON.stringify(body ?? {});
     const signature = `${method}:${path}:${serialized}`;
     if (retry.current?.signature !== signature) retry.current = { signature, key: crypto.randomUUID() };

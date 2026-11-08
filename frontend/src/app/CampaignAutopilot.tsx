@@ -87,3 +87,63 @@ export function StandingAttestations({ api, campaignId, editable }: { api: Api; 
     {error && <p className="form-error" role="alert">{error}</p>}
   </section>;
 }
+
+const scheduleSchema = z.object({ configured: z.boolean(), integration_id: z.string().uuid().nullable().optional(), enabled: z.boolean(), hours: z.array(z.number()),
+  paused_reason: z.string().nullable().optional(), updated_at: z.string().nullable().optional() });
+const postSchema = z.object({ id: z.string().uuid(), content_id: z.string().uuid(), version_no: z.number(), slot_at: z.string(), status: z.string(), attempted_at: z.string().nullable(),
+  external_post_id: z.string().nullable(), error: z.string().nullable(), title: z.string().nullable() });
+const pageSchema = z.array(z.object({ id: z.string().uuid(), kind: z.string(), label: z.string(), last_check_status: z.string().nullable() }));
+const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
+
+/** The Owner's posting schedule: approved items of this campaign post to the Facebook Page at these hours. */
+export function PostingSchedule({ api, campaignId, active }: { api: Api; campaignId: string; active: boolean }) {
+  const { tr, locale } = useTr();
+  const schedule = useQuery({ queryKey: ['campaigns', campaignId, 'schedule'], queryFn: async () => scheduleSchema.parse(await api.request(`/campaigns/${campaignId}/schedule`)) });
+  const posts = useQuery({ queryKey: ['campaigns', campaignId, 'scheduled-posts'], refetchInterval: 15000, queryFn: async () => z.array(postSchema).parse(await api.request(`/campaigns/${campaignId}/scheduled-posts`)) });
+  const pages = useQuery({ queryKey: ['campaigns', 'integrations', 'pages'], queryFn: async () => pageSchema.parse(await api.request('/integrations')).filter(item => item.kind === 'FACEBOOK_PAGE') });
+  const [page, setPage] = useState('');
+  const [hours, setHours] = useState<number[] | null>(null);
+  const [error, setError] = useState('');
+  const current = schedule.data;
+  const chosenHours = hours ?? (current?.configured ? current.hours : [8, 20]);
+  const chosenPage = page || current?.integration_id || pages.data?.[0]?.id || '';
+  const statusLabel: Record<string, string> = { QUEUED: tr('Chờ đăng', 'Queued'), POSTING: tr('Đang đăng', 'Posting'), POSTED: tr('Đã đăng', 'Posted'), FAILED: tr('Lỗi', 'Failed'), CANCELLED: tr('Đã hủy', 'Cancelled') };
+
+  async function save(enabled: boolean) {
+    setError('');
+    if (enabled && !window.confirm(tr(`Bật lịch: app sẽ TỰ ĐỘNG đăng lên Facebook Page các bài anh/chị đã duyệt của chiến dịch này, lúc ${chosenHours.map(h => `${h}h`).join(', ')} (giờ Việt Nam). Mọi lỗi sẽ tự dừng lịch. Tiếp tục?`,
+      `Turn on: the app will AUTOMATICALLY post this campaign's approved items to the Facebook Page at ${chosenHours.join(', ')}h (Vietnam time). Any error pauses it. Continue?`))) return;
+    try {
+      await api.send('PUT', `/campaigns/${campaignId}/schedule`, { integration_id: chosenPage, enabled, hours: chosenHours }, scheduleSchema);
+      setHours(null);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : tr('Không lưu được lịch.', 'Unable to save the schedule.')); }
+  }
+  async function cancel(id: string) {
+    setError('');
+    try { await api.send('POST', `/campaigns/${campaignId}/scheduled-posts/${id}/cancel`, {}, postSchema); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : tr('Không hủy được.', 'Unable to cancel.')); }
+  }
+  const toggleHour = (hour: number) => setHours(chosenHours.includes(hour) ? chosenHours.filter(item => item !== hour) : [...chosenHours, hour].sort((a, b) => a - b));
+  return <section className="panel"><h3>{tr('Lịch tự đăng lên Facebook Page', 'Automatic posting to the Facebook Page')}</h3>
+    <p className="muted">{tr('Chỉ bài anh/chị đã DUYỆT mới được đăng, đúng phiên bản đã duyệt, mỗi bài một lần. Sửa hoặc từ chối bài sẽ hủy lượt đăng. Lỗi bất kỳ sẽ tự dừng lịch.',
+      'Only items you APPROVED post, exactly the approved version, once each. Editing or rejecting cancels it. Any error pauses the schedule.')}</p>
+    {pages.data?.length === 0 && <p className="form-error" role="alert">{tr('Chưa kết nối Facebook Page ở trang Kết nối.', 'Connect a Facebook Page on the Integrations page first.')}</p>}
+    {current?.configured && <p role="status"><span className="badge">{current.enabled ? tr('Đang bật', 'On') : tr('Đang tắt', 'Off')}</span>
+      {current.paused_reason && <span className="form-error"> {tr('Đã tự dừng', 'Paused')}: {current.paused_reason}</span>}</p>}
+    {pages.data && pages.data.length > 0 && <>
+      <label className="field">Facebook Page<select value={chosenPage} onChange={event => setPage(event.target.value)}>
+        {pages.data.map(item => <option key={item.id} value={item.id}>{item.label}{item.last_check_status === 'OK' ? '' : tr(' (chưa kiểm tra kết nối)', ' (not checked)')}</option>)}</select></label>
+      <fieldset className="field"><legend>{tr('Giờ đăng (giờ Việt Nam, tối đa 6)', 'Posting hours (Vietnam time, up to 6)')}</legend>
+        <div className="toolbar">{HOURS.map(hour => <label key={hour} className="login-remember"><input type="checkbox" checked={chosenHours.includes(hour)}
+          disabled={!chosenHours.includes(hour) && chosenHours.length >= 6} onChange={() => toggleHour(hour)}/>{hour}h</label>)}</div></fieldset>
+      <div className="toolbar">
+        <button className="primary" disabled={api.busy || !active || !chosenPage || !chosenHours.length} onClick={() => void save(true)}>{current?.enabled ? tr('Lưu lịch', 'Save schedule') : tr('Bật lịch tự đăng', 'Turn on')}</button>
+        {current?.enabled && <button className="danger" disabled={api.busy} onClick={() => void save(false)}>{tr('Tạm dừng', 'Pause')}</button>}</div>
+    </>}
+    {error && <p className="form-error" role="alert">{error}</p>}
+    {posts.data && posts.data.length > 0 && <><h4>{tr('Lượt đăng', 'Posts')}</h4><ul className="table">{posts.data.map(post => <li key={post.id} data-testid="scheduled-post">
+      {new Date(post.slot_at).toLocaleString(locale, { timeZone: 'Asia/Ho_Chi_Minh' })} · {post.title ?? post.content_id} · <span className="badge">{statusLabel[post.status] ?? post.status}</span>
+      {post.external_post_id && <span className="muted"> · facebook.com/{post.external_post_id}</span>}{post.error && <span className="muted"> · {post.error}</span>}
+      {post.status === 'QUEUED' && <> <button type="button" disabled={api.busy} onClick={() => void cancel(post.id)}>{tr('Hủy', 'Cancel')}</button></>}</li>)}</ul></>}
+  </section>;
+}

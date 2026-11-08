@@ -14,14 +14,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.ai_brain.content_contract import BODY_LIMITS, LINK_PLACEHOLDER
-from app.campaigns.review import ensure_checks
+from app.ai_brain.content_contract import BODY_LIMITS
+from app.campaigns.review import PostUnavailable, compose_post, ensure_checks
 from app.api.campaign_routes import IdempotencyKey, _audit, _campaign, _save
 from app.api.content_routes import ContentDetail, _content_response
 from app.api.opportunity_routes import _idempotent
 from app.auth.dependencies import require_owner
 from app.campaigns.links import LinkRuleError, safe_url
-from app.db.models import AffiliateLink, ContentCheck, ContentItem, ContentPublishRecord, ContentVersion
+from app.db.models import ContentCheck, ContentItem, ContentPublishRecord, ContentVersion
 from app.db.session import get_db
 
 router = APIRouter(prefix='/api/v1/campaigns', dependencies=[Depends(require_owner)], tags=['campaign-review'])
@@ -202,27 +202,15 @@ def export_content(campaign_id: UUID, content_id: UUID, body: ExportRequest, res
         return existing
     item = _item(db, campaign_id, content_id)
     _require(item, 'APPROVED', 'READY_TO_PUBLISH', 'PUBLISHED')
-    link = db.get(AffiliateLink, item.affiliate_link_id)
-    if link is None or link.status != 'ACTIVE':
-        raise HTTPException(status_code=409, detail='The affiliate link of this content was retired; edit the content or add a new link')
-    version = _version(db, item)
-    campaign = _campaign(db, campaign_id)
-    tags = ' '.join(f'#{tag}' for tag in version.hashtags)
-    body_text, cta = version.body.replace(LINK_PLACEHOLDER, link.final_url), version.cta.replace(LINK_PLACEHOLDER, link.final_url)
-    if LINK_PLACEHOLDER not in version.body and LINK_PLACEHOLDER not in version.cta:
-        raise HTTPException(status_code=409, detail='The content has no link placeholder')
-    disclosure = campaign.disclosure_text
-    add_disclosure = bool(disclosure) and disclosure.casefold() not in f'{version.body}\n{version.cta}'.casefold()
-    parts = [f'# {version.title}' if body.format == 'markdown' else version.title, body_text, cta]
-    if tags:
-        parts.append(tags)
-    if add_disclosure:
-        parts.append(f'_{disclosure}_' if body.format == 'markdown' else disclosure)
+    try:
+        text, link_url, add_disclosure, version_no = compose_post(db, item, body.format)
+    except PostUnavailable as error:
+        raise HTTPException(status_code=409, detail=str(error)) from None
     if item.status == 'APPROVED':
         item.status = 'READY_TO_PUBLISH'
-    _audit(db, actor, 'content.exported', 'content_item', item.id, version_no=version.version_no, format=body.format, disclosure_added=add_disclosure)
+    _audit(db, actor, 'content.exported', 'content_item', item.id, version_no=version_no, format=body.format, disclosure_added=add_disclosure)
     db.flush()
-    result = ExportResponse(content_id=item.id, version_no=version.version_no, format=body.format, text='\n\n'.join(parts), link_url=link.final_url,
+    result = ExportResponse(content_id=item.id, version_no=version_no, format=body.format, text=text, link_url=link_url,
                             disclosure_added=add_disclosure, status=item.status)
     return _save(db, actor, key, 'POST', path, payload, result, 200, response, ExportResponse)
 

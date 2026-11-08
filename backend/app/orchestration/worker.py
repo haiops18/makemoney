@@ -236,7 +236,19 @@ def recover_one(factory: sessionmaker) -> bool:
     return False
 
 
-def run_once(factory: sessionmaker, *, ai_transport=None) -> bool:
+def _post_once(factory: sessionmaker, transport) -> bool:
+    from app.campaigns.posting import posting_tick
+    try:
+        return posting_tick(factory, **({'transport': transport} if transport else {}))
+    except Exception:
+        # Post outcomes are recorded and pause the schedule; an unexpected error is logged and never stops the workflow worker.
+        import logging
+        logging.getLogger('posting').exception('Posting tick failed')
+        return False
+
+
+def run_once(factory: sessionmaker, *, ai_transport=None, post_transport=None) -> bool:
+    posted = _post_once(factory, post_transport)
     recovered = recover_one(factory)
     activated = activate_one(factory)
     auto_queued = auto_queue_one(factory)
@@ -254,7 +266,7 @@ def run_once(factory: sessionmaker, *, ai_transport=None) -> bool:
         else:
             result, error = _invoke(task_type, payload, timeout)
         finalize(factory, execution_id, token, result, error)
-    return recovered or activated or auto_queued or claimed is not None
+    return posted or recovered or activated or auto_queued or claimed is not None
 
 
 def main() -> None:

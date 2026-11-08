@@ -24,7 +24,8 @@ from app.api.opportunity_routes import _idempotent
 from app.auth.dependencies import require_owner
 from app.campaigns.links import HOST as HOST_NAME, LinkRuleError, safe_url
 from app.campaigns.review import open_checks
-from app.db.models import (AffiliateLink, AffiliateProgram, Campaign, CampaignAttestation, CampaignProduct, CampaignSource, ContentItem, ContentVersion)
+from app.db.models import (AffiliateLink, AffiliateProgram, Campaign, CampaignAttestation, CampaignProduct, CampaignSource, ContentItem, ContentVersion, Integration,
+                           PostingSchedule, ScheduledPost)
 from app.db.session import get_db
 from app.integrations import accesstrade
 
@@ -258,3 +259,107 @@ def proposals(db: Session = Depends(get_db)):
         result.append(ProposalOut(content_id=item.id, campaign_id=campaign.id, campaign_name=campaign.name, content_type=item.content_type, title=version.title, body=version.body,
                                   hashtags=version.hashtags, cta=version.cta, link_label=link.label if link else None, ready=not pending, open_checks=pending, created_at=item.created_at))
     return sorted(result, key=lambda proposal: not proposal.ready)
+
+
+# Posting schedule ------------------------------------------------------------------
+
+class ScheduleIn(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    integration_id: UUID
+    enabled: bool
+    hours: list[int] = Field(min_length=1, max_length=6)
+
+
+class ScheduleOut(BaseModel):
+    configured: bool
+    integration_id: UUID | None = None
+    enabled: bool = False
+    hours: list[int] = []
+    paused_reason: str | None = None
+    updated_at: datetime | None = None
+
+
+class ScheduledPostOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    content_id: UUID
+    version_no: int
+    slot_at: datetime
+    status: str
+    attempted_at: datetime | None
+    external_post_id: str | None
+    error: str | None
+    title: str | None = None
+
+
+def _schedule_out(schedule: PostingSchedule | None) -> ScheduleOut:
+    if schedule is None:
+        return ScheduleOut(configured=False)
+    return ScheduleOut(configured=True, integration_id=schedule.integration_id, enabled=schedule.enabled, hours=schedule.hours, paused_reason=schedule.paused_reason,
+                       updated_at=schedule.updated_at)
+
+
+@router.get('/campaigns/{campaign_id}/schedule', response_model=ScheduleOut)
+def get_schedule(campaign_id: UUID, db: Session = Depends(get_db)):
+    _campaign(db, campaign_id)
+    return _schedule_out(db.scalar(select(PostingSchedule).where(PostingSchedule.campaign_id == campaign_id)))
+
+
+@router.put('/campaigns/{campaign_id}/schedule', response_model=ScheduleOut)
+def set_schedule(campaign_id: UUID, body: ScheduleIn, response: Response, key: str = IdempotencyKey, actor: str = Depends(require_owner), db: Session = Depends(get_db)):
+    """Turning the schedule on is the Owner's approval to post APPROVED items of this campaign automatically."""
+    path, payload = f'/api/v1/campaigns/{campaign_id}/schedule', body.model_dump(mode='json')
+    if existing := _idempotent(db, actor, key, 'PUT', path, payload, ScheduleOut):
+        return existing
+    campaign = _campaign(db, campaign_id, lock=True, editable=True)
+    hours = sorted(set(body.hours))
+    if any(not 0 <= hour <= 23 for hour in hours) or len(hours) != len(body.hours):
+        raise HTTPException(status_code=422, detail='Hours must be distinct whole hours from 0 to 23 (Vietnam time)')
+    integration = db.scalar(select(Integration).where(Integration.id == body.integration_id, Integration.kind == 'FACEBOOK_PAGE', Integration.archived.is_(False)))
+    if integration is None:
+        raise HTTPException(status_code=404, detail='Facebook Page integration not found')
+    if body.enabled and (campaign.status != 'ACTIVE' or not integration.enabled or integration.last_check_status != 'OK'):
+        raise HTTPException(status_code=409, detail='Activate the campaign and run a successful connection check of the Facebook Page first')
+    schedule = db.scalar(select(PostingSchedule).where(PostingSchedule.campaign_id == campaign_id).with_for_update())
+    if schedule is None:
+        schedule = PostingSchedule(campaign_id=campaign_id, integration_id=integration.id, enabled=body.enabled, posts_per_day=len(hours), hours=hours, updated_by=actor)
+        db.add(schedule)
+    else:
+        schedule.integration_id, schedule.enabled, schedule.posts_per_day, schedule.hours, schedule.updated_by = integration.id, body.enabled, len(hours), hours, actor
+    schedule.paused_reason = None
+    cancelled = 0
+    for post in db.scalars(select(ScheduledPost).where(ScheduledPost.campaign_id == campaign_id, ScheduledPost.status == 'QUEUED').with_for_update()):
+        # Slots are recomputed from the new settings; turning off cancels everything not yet posted.
+        post.status, post.error = 'CANCELLED', 'Schedule changed by the Owner'
+        cancelled += 1
+    db.flush()
+    _audit(db, actor, 'posting.schedule_set', 'campaign', campaign_id, enabled=body.enabled, hours=hours, integration_id=integration.id, cancelled=cancelled)
+    return _save(db, actor, key, 'PUT', path, payload, _schedule_out(schedule), 200, response, ScheduleOut)
+
+
+@router.get('/campaigns/{campaign_id}/scheduled-posts', response_model=list[ScheduledPostOut])
+def scheduled_posts(campaign_id: UUID, db: Session = Depends(get_db)):
+    _campaign(db, campaign_id)
+    rows = db.execute(select(ScheduledPost, ContentVersion.title).join(ContentVersion, (ContentVersion.content_id == ScheduledPost.content_id) & (ContentVersion.version_no == ScheduledPost.version_no))
+                      .where(ScheduledPost.campaign_id == campaign_id).order_by(ScheduledPost.slot_at.desc(), ScheduledPost.id).limit(50)).all()
+    return [ScheduledPostOut.model_validate(post).model_copy(update={'title': title}) for post, title in rows]
+
+
+@router.post('/campaigns/{campaign_id}/scheduled-posts/{post_id}/cancel', response_model=ScheduledPostOut)
+def cancel_scheduled_post(campaign_id: UUID, post_id: UUID, response: Response, key: str = IdempotencyKey, actor: str = Depends(require_owner), db: Session = Depends(get_db)):
+    path = f'/api/v1/campaigns/{campaign_id}/scheduled-posts/{post_id}/cancel'
+    if existing := _idempotent(db, actor, key, 'POST', path, {}, ScheduledPostOut):
+        return existing
+    _campaign(db, campaign_id, lock=True)
+    post = db.scalar(select(ScheduledPost).where(ScheduledPost.id == post_id, ScheduledPost.campaign_id == campaign_id).with_for_update())
+    if post is None:
+        raise HTTPException(status_code=404, detail='Scheduled post not found')
+    if post.status != 'QUEUED':
+        raise HTTPException(status_code=409, detail='Only a queued post can be cancelled')
+    post.status, post.error = 'CANCELLED', 'Cancelled by the Owner'
+    item = db.get(ContentItem, post.content_id)
+    if item is not None and item.status == 'APPROVED':
+        item.status = 'READY_TO_PUBLISH'  # keep it out of automatic posting; the Owner can still export it
+    db.flush()
+    _audit(db, actor, 'posting.cancelled', 'scheduled_post', post.id, reason='Owner')
+    return _save(db, actor, key, 'POST', path, {}, ScheduledPostOut.model_validate(post), 200, response, ScheduledPostOut)

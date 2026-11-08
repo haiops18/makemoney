@@ -436,6 +436,19 @@ Mọi con số là **ước tính** của AI từ kết quả tìm kiếm chưa 
    soạn xong.
 4. Mở trang **Đề xuất**: bài đã qua hết kiểm tra nằm ở đầu. Đọc lại, nhập ghi chú và bấm **Duyệt**.
 
+### 6.7. Tự đăng bài theo lịch lên Facebook Page (Step 7B)
+
+1. Ở trang **Kết nối**, thêm Facebook Page và bấm *Kiểm tra kết nối* cho tới khi báo *Kết nối tốt*.
+2. Ở tab **Nội dung** của chiến dịch (đang *Kích hoạt*), mục **Lịch tự đăng lên Facebook Page**: chọn
+   Page, chọn tối đa 6 giờ đăng mỗi ngày (giờ Việt Nam) rồi bấm **Bật lịch tự đăng** và xác nhận.
+3. Từ đó, mỗi bài anh/chị **Duyệt** (ở trang Đề xuất hoặc trong chiến dịch) được xếp vào giờ trống
+   kế tiếp và tự đăng đúng phiên bản đã duyệt, kèm link affiliate thật và câu công bố.
+4. Danh sách *Lượt đăng* cho thấy giờ đăng, trạng thái và mã bài trên Facebook. Bấm *Hủy* để bỏ một
+   lượt chưa đăng, hoặc **Tạm dừng** để dừng cả lịch.
+
+An toàn: sửa hoặc từ chối bài sẽ hủy lượt đăng của bài đó; mỗi bài chỉ đăng một lần; lỗi bất kỳ (sai
+token, Facebook từ chối, mất kết nối) sẽ **tự dừng lịch** và ghi lý do để anh/chị kiểm tra.
+
 ## 7. Theo dõi và đối soát chi phí
 
 Trang **Chi phí AI** hiển thị:
