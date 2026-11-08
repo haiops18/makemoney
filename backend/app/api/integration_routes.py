@@ -17,8 +17,9 @@ from app.ai_brain.credentials import CredentialUnavailable, credential_digest, d
 from app.ai_brain.network import provider_request
 from app.api.campaign_routes import IdempotencyKey, _audit, _save
 from app.api.opportunity_routes import _idempotent
+from app.core.locks import paid_call_lock
 from app.auth.dependencies import require_owner
-from app.db.models import Integration
+from app.db.models import Integration, PostingSchedule
 from app.db.session import get_db
 from app.integrations.kinds import KINDS, ConfigError
 
@@ -159,8 +160,11 @@ def update_integration(item_id: UUID, body: IntegrationUpdate, response: Respons
         item.enabled, changed = body.enabled, [*changed, 'enabled']
     if secret is not None:
         item.encrypted_secret, changed = _encrypt(item.id, secret), [*changed, 'secret']
-    if secret is not None or body.config is not None:
+    if secret is not None or body.config is not None or body.enabled is False:
         item.last_checked_at = item.last_check_status = item.last_check_detail = None  # a new account must be checked again
+        for schedule in db.scalars(select(PostingSchedule).where(PostingSchedule.integration_id == item.id, PostingSchedule.enabled.is_(True)).with_for_update()):
+            schedule.enabled, schedule.paused_reason = False, 'The Facebook Page account changed; check the connection and turn the schedule on again'
+            changed = [*changed, 'schedule_paused']
     try:
         db.flush()
     except IntegrityError:
@@ -178,6 +182,8 @@ def archive_integration(item_id: UUID, response: Response, key: str = Idempotenc
         return existing
     item = _get(db, item_id, lock=True)
     item.encrypted_secret, item.enabled, item.archived = None, False, True
+    for schedule in db.scalars(select(PostingSchedule).where(PostingSchedule.integration_id == item.id, PostingSchedule.enabled.is_(True)).with_for_update()):
+        schedule.enabled, schedule.paused_reason = False, 'The Facebook Page integration was removed'
     db.flush()
     _audit(db, actor, 'integration.archived', 'integration', item.id, kind=item.kind)
     return _save(db, actor, key, 'POST', path, {}, _response(item), 200, response, IntegrationResponse)
@@ -199,26 +205,30 @@ def test_integration(item_id: UUID, response: Response, key: str = IdempotencyKe
         raise HTTPException(status_code=503, detail='Credential encryption is unavailable') from None
     db.rollback()  # never hold a transaction while waiting on the network
     detail = None
-    try:
-        request = kind.check(config, secret)
-        code, raw = connection_transport(request.method, request.url, {kind.host}, request.headers, request.payload, 20, query=request.query)
-        if code in (401, 403):
-            outcome = 'AUTH_FAILED'
-        elif code == 429:
-            outcome = 'RATE_LIMITED'
-        elif not 200 <= code < 300:
-            outcome = 'PROVIDER_ERROR'
-        else:
-            detail = kind.verify(config, raw)
-            outcome = 'OK' if detail else 'INVALID_RESPONSE'
-    except Exception:
-        outcome = 'UNREACHABLE'
-    finally:
-        secret = None
-    item = _get(db, item_id, lock=True)
-    if item.encrypted_secret != ciphertext or dict(item.config_json or {}) != config:
-        raise HTTPException(status_code=409, detail='The integration changed during the check; run it again')
-    item.last_checked_at, item.last_check_status, item.last_check_detail = datetime.now(UTC), outcome, detail
-    db.flush()
-    _audit(db, actor, 'integration.checked', 'integration', item.id, kind=item.kind, outcome=outcome)
-    return _save(db, actor, key, 'POST', path, {}, _response(item), 200, response, IntegrationResponse)
+    with paid_call_lock(db, actor, key):  # a concurrent duplicate cannot repeat a paid search check
+        if existing := _idempotent(db, actor, key, 'POST', path, {}, IntegrationResponse):
+            return existing
+        db.rollback()
+        try:
+            request = kind.check(config, secret)
+            code, raw = connection_transport(request.method, request.url, {kind.host}, request.headers, request.payload, 20, query=request.query)
+            if code in (401, 403):
+                outcome = 'AUTH_FAILED'
+            elif code == 429:
+                outcome = 'RATE_LIMITED'
+            elif not 200 <= code < 300:
+                outcome = 'PROVIDER_ERROR'
+            else:
+                detail = kind.verify(config, raw)
+                outcome = 'OK' if detail else 'INVALID_RESPONSE'
+        except Exception:
+            outcome = 'UNREACHABLE'
+        finally:
+            secret = None
+        item = _get(db, item_id, lock=True)
+        if item.encrypted_secret != ciphertext or dict(item.config_json or {}) != config:
+            raise HTTPException(status_code=409, detail='The integration changed during the check; run it again')
+        item.last_checked_at, item.last_check_status, item.last_check_detail = datetime.now(UTC), outcome, detail
+        db.flush()
+        _audit(db, actor, 'integration.checked', 'integration', item.id, kind=item.kind, outcome=outcome)
+        return _save(db, actor, key, 'POST', path, {}, _response(item), 200, response, IntegrationResponse)

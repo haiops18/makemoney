@@ -127,3 +127,11 @@ def test_transport_rejects_bad_queries_and_headers():
         provider_request('GET', 'https://api.accesstrade.vn/v1/campaigns', {'api.accesstrade.vn'}, {'Cookie': 'a'}, None, 5)
     with pytest.raises(NetworkDenied):
         provider_request('GET', 'https://evil.example/v1', {'api.accesstrade.vn'}, {}, None, 5)
+
+
+def test_validation_errors_never_echo_the_token(client, auth_headers):
+    missing_label = send(client, auth_headers, 'POST', '', {'kind': 'ACCESSTRADE', 'secret': 'super-secret-token-1'})
+    extra = send(client, auth_headers, 'POST', '', {'kind': 'ACCESSTRADE', 'label': 'x', 'secret': 'super-secret-token-2', 'oops': 1})
+    assert missing_label.status_code == extra.status_code == 422
+    assert 'super-secret-token' not in missing_label.text + extra.text
+    assert missing_label.json()['detail'][0]['loc'] == ['body', 'label']

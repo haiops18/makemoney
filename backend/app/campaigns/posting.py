@@ -43,6 +43,13 @@ def next_slots(hours: list[int], taken: set[datetime], now: datetime, count: int
     return slots
 
 
+def _hold(db, post: ScheduledPost) -> None:
+    """After a failed or unknown outcome the item never re-enters the queue; the Owner checks the Page and exports it by hand."""
+    item = db.scalar(select(ContentItem).where(ContentItem.id == post.content_id).with_for_update())
+    if item is not None and item.status == 'APPROVED':
+        item.status = 'READY_TO_PUBLISH'
+
+
 def pause(db, schedule: PostingSchedule, reason: str) -> None:
     schedule.enabled, schedule.paused_reason = False, reason[:300]
     _audit(db, 'posting.paused', 'posting_schedule', schedule.id, campaign_id=schedule.campaign_id, reason=reason[:300])
@@ -74,6 +81,7 @@ def _recover(db, now: datetime) -> bool:
     if stuck is None:
         return False
     stuck.status, stuck.error = 'FAILED', 'Outcome unknown after a crash; check the Page before posting again'
+    _hold(db, stuck)
     schedule = db.scalar(select(PostingSchedule).where(PostingSchedule.campaign_id == stuck.campaign_id).with_for_update())
     if schedule is not None:
         pause(db, schedule, stuck.error)
@@ -82,11 +90,15 @@ def _recover(db, now: datetime) -> bool:
 
 
 def _claim(db, now: datetime):
-    post = db.scalar(select(ScheduledPost).where(ScheduledPost.status == 'QUEUED', ScheduledPost.slot_at <= now).order_by(ScheduledPost.slot_at, ScheduledPost.id)
-                     .with_for_update(skip_locked=True).limit(1))
+    due = db.scalar(select(ScheduledPost).where(ScheduledPost.status == 'QUEUED', ScheduledPost.slot_at <= now).order_by(ScheduledPost.slot_at, ScheduledPost.id).limit(1))
+    if due is None:
+        return None
+    # Same lock order as the schedule API: schedule first, then the post (re-checked under lock).
+    schedule = db.scalar(select(PostingSchedule).where(PostingSchedule.campaign_id == due.campaign_id).with_for_update())
+    post = db.scalar(select(ScheduledPost).where(ScheduledPost.id == due.id, ScheduledPost.status == 'QUEUED').with_for_update(skip_locked=True)
+                     .execution_options(populate_existing=True))
     if post is None:
         return None
-    schedule = db.scalar(select(PostingSchedule).where(PostingSchedule.campaign_id == post.campaign_id).with_for_update())
     campaign = db.get(Campaign, post.campaign_id)
     item = db.scalar(select(ContentItem).where(ContentItem.id == post.content_id).with_for_update())
     integration = db.get(Integration, post.integration_id)
@@ -99,9 +111,10 @@ def _claim(db, now: datetime):
         return cancel('The schedule is off or the campaign is not active')
     if item.status != 'APPROVED' or item.current_version_no != post.version_no:
         return cancel('The content changed after approval')
-    if integration is None or integration.archived or not integration.enabled or integration.kind != 'FACEBOOK_PAGE' or not integration.encrypted_secret:
-        pause(db, schedule, 'The Facebook Page integration is unavailable')
-        return cancel('The Facebook Page integration is unavailable')
+    if (integration is None or integration.archived or not integration.enabled or integration.kind != 'FACEBOOK_PAGE' or not integration.encrypted_secret
+            or integration.last_check_status != 'OK'):
+        pause(db, schedule, 'The Facebook Page integration is unavailable or its connection has not been checked since it changed')
+        return cancel('The Facebook Page integration is unavailable or unchecked')
     try:
         text, link_url, _, version_no = compose_post(db, item)
         token = decrypt_credential(integration.id, integration.encrypted_secret)
@@ -144,6 +157,7 @@ def posting_tick(factory, *, transport=provider_request, now: datetime | None = 
         schedule = db.scalar(select(PostingSchedule).where(PostingSchedule.campaign_id == post.campaign_id).with_for_update())
         if error:
             post.status, post.error = 'FAILED', error
+            _hold(db, post)
             _audit(db, 'posting.failed', 'scheduled_post', post.id, reason=error)
             if schedule is not None:
                 pause(db, schedule, error)
@@ -152,6 +166,7 @@ def posting_tick(factory, *, transport=provider_request, now: datetime | None = 
         item = db.scalar(select(ContentItem).where(ContentItem.id == post.content_id).with_for_update())
         db.add(ContentPublishRecord(content_id=item.id, version_no=post.version_no, channel='Facebook Page', published_url=f'https://www.facebook.com/{external}',
                                     published_at=now, recorded_by='posting-worker'))
-        item.status = 'PUBLISHED'
-        _audit(db, 'posting.posted', 'scheduled_post', post.id, content_id=item.id, external_post_id=external)
+        if item.status == 'APPROVED' and item.current_version_no == post.version_no:
+            item.status = 'PUBLISHED'
+        _audit(db, 'posting.posted', 'scheduled_post', post.id, content_id=item.id, external_post_id=external, version_no=post.version_no)
     return True

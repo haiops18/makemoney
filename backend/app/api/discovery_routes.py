@@ -23,6 +23,7 @@ from app.api.ai_research_routes import AI_DISCLAIMER, PIPELINE, _stage_inputs
 from app.api.campaign_routes import IdempotencyKey, _audit, _save
 from app.api.integration_routes import active_secret
 from app.api.opportunity_routes import _idempotent
+from app.core.locks import paid_call_lock
 from app.api.opportunity_schemas import OpportunityEvaluate
 from app.auth.dependencies import require_owner
 from app.db.models import (Agent, AIInvocation, AIResearchRun, AIResearchSource, DiscoveryCandidate, Integration, Opportunity, OpportunityEvaluation,
@@ -199,8 +200,16 @@ def create_discovery(body: DiscoveryCreate, response: Response, key: str = Idemp
     for task_type, _, _ in [*PIPELINE, RANKING]:
         _stage_inputs(db, task_type, now)  # fail before any paid query
     queries = list(dict.fromkeys(body.queries or [template.format(topic=body.topic) for template in QUERY_TEMPLATES[:body.query_count]]))
-    kind = integration.kind
+    kind, integration_id = integration.kind, integration.id
     db.rollback()  # never hold a transaction while waiting on the network
+    with paid_call_lock(db, actor, key):  # a concurrent duplicate cannot repeat the paid searches
+        if existing := _idempotent(db, actor, key, 'POST', path, payload, DiscoveryDetail):
+            return existing
+        db.rollback()
+        return _search_and_store(db, body, integration_id, kind, secret, queries, now, actor, key, path, payload, response)
+
+
+def _search_and_store(db, body, integration_id, kind, secret, queries, now, actor, key, path, payload, response):
     hits, failures = [], []
     try:
         for query in queries:
@@ -215,11 +224,9 @@ def create_discovery(body: DiscoveryCreate, response: Response, key: str = Idemp
                 failures.append('The search service could not be reached')
     finally:
         secret = None
-    if existing := _idempotent(db, actor, key, 'POST', path, payload, DiscoveryDetail):
-        return existing
     unique = list({hit.url: hit for hit in hits}.values())[:MAX_SOURCES]
     if not unique:
-        _audit(db, actor, 'discovery.search_failed', 'integration', integration.id, query_count=len(queries), reasons=sorted(set(failures))[:3])
+        _audit(db, actor, 'discovery.search_failed', 'integration', integration_id, query_count=len(queries), reasons=sorted(set(failures))[:3])
         db.commit()
         raise HTTPException(status_code=502 if failures else 409, detail=(failures[0] if failures else 'The search found no usable results; try another topic'))
     objective = (f'Tìm các cách kiếm tiền khả thi cho một người ở {body.target_market} trong lĩnh vực: {body.topic}.'
@@ -234,7 +241,7 @@ def create_discovery(body: DiscoveryCreate, response: Response, key: str = Idemp
         db.add(AIResearchSource(research_run_id=run.id, source_name=hit.title, source_url=hit.url, excerpt=hit.snippet, verification_status='UNVERIFIED'))
     db.flush()
     _add_workflow(db, run, actor, now)
-    _audit(db, actor, 'discovery.created', 'ai_research_run', run.id, integration_id=integration.id, search_kind=kind, query_count=len(queries),
+    _audit(db, actor, 'discovery.created', 'ai_research_run', run.id, integration_id=integration_id, search_kind=kind, query_count=len(queries),
            source_count=len(unique), failed_queries=len(failures))
     return _save(db, actor, key, 'POST', path, payload, _detail(db, run), 201, response, DiscoveryDetail)
 

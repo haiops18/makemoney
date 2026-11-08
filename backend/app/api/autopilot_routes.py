@@ -145,7 +145,7 @@ def accesstrade_import(campaign_id: UUID, body: ImportRequest, response: Respons
             text = f'{item.name}: giá {_vnd(price)}' + (f' (giá gốc {_vnd(item.price)})' if item.discount and item.price and item.price != item.discount else '')
             source = CampaignSource(campaign_id=campaign_id, source_name=f'ACCESSTRADE datafeed · {merchant}', source_url=item.url, excerpt=f'{text}. Dữ liệu ACCESSTRADE lúc {now:%d/%m/%Y %H:%M} UTC.',
                                     captured_at=now, verification_status='VERIFIED', verified_by=actor, verified_at=now,
-                                    verification_note='Owner imported this price from the ACCESSTRADE API; prices can change.')
+                                    verification_note='Price as listed by ACCESSTRADE when the Owner imported it (not re-fetched); prices change, confirm on the shop page.')
             db.add(source)
             db.flush()
         product = CampaignProduct(campaign_id=campaign_id, name=item.name, merchant=merchant, product_url=item.url, price_text=_vnd(price) if price else None,

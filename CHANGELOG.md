@@ -53,6 +53,15 @@
     The Owner can cancel a queued post or pause at any time.
   - API: `GET|PUT /campaigns/{id}/schedule`, `/campaigns/{id}/scheduled-posts[/{pid}/cancel]`.
     Migration `20261108_0026`.
+- Security review fixes (Step 7B):
+  - Posting re-checks at post time that the Page's last connection check is OK; replacing,
+    reconfiguring, disabling or removing a Page integration pauses its schedules.
+  - A failed or unknown-outcome post moves the item to READY_TO_PUBLISH, so turning the schedule
+    back on can never post it twice; only the exact posted version becomes PUBLISHED.
+  - Paid search requests (discovery, search connection checks) hold a per-key lock across the
+    network call and the stored result, so a concurrent duplicate cannot repeat paid queries.
+  - 422 validation errors no longer echo the request input (which could contain a token).
+  - The posting worker locks the schedule before the post, like the schedule API.
 
 ## v30.0.0 — 2026-11-08 — Step 7A AI Content & Affiliate Factory (Level B)
 

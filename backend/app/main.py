@@ -1,6 +1,9 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.responses import RedirectResponse
 
 from app.api.routes import router
@@ -31,6 +34,14 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="AUTO MONEY AI", version="0.1.0", lifespan=lifespan)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(_request: Request, error: RequestValidationError) -> JSONResponse:
+    """422 without the submitted input: request bodies can carry tokens that must never be echoed."""
+    detail = [{name: value for name, value in item.items() if name in ('type', 'loc', 'msg')} for item in error.errors()]
+    return JSONResponse(status_code=422, content={'detail': jsonable_encoder(detail)})
+
 app.include_router(router)
 app.include_router(approval_router)
 app.include_router(finance_router)

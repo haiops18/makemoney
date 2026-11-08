@@ -90,3 +90,14 @@ def test_approved_items_post_on_schedule_and_a_failure_pauses(pg, monkeypatch):
     statuses = sorted(post['status'] for post in client.get(base + '/scheduled-posts', headers=HEADERS).json())
     assert statuses == ['FAILED', 'POSTED']
     assert posting_tick(factory, transport=failing, now=second_slot + timedelta(days=1)) is False and len(failing.calls) == 1
+    # A failed (maybe-posted) item leaves automatic posting, so turning the schedule back on cannot post it twice.
+    with factory() as db:
+        failed = db.scalar(select(ScheduledPost).where(ScheduledPost.status == 'FAILED', ScheduledPost.campaign_id == UUID(base.rsplit('/', 1)[1])))
+        assert db.get(ContentItem, failed.content_id).status == 'READY_TO_PUBLISH'
+    assert client.put(base + '/schedule', json=schedule, headers=key()).json()['enabled'] is True
+    assert posting_tick(factory, transport=failing, now=second_slot + timedelta(days=2)) is False and len(failing.calls) == 1
+    # Replacing the Page token pauses the schedule until the new account is checked.
+    assert client.patch(f"/api/v1/integrations/{page['id']}", json={'secret': 'EAAG-new'}, headers=key()).status_code == 200
+    paused = client.get(base + '/schedule', headers=HEADERS).json()
+    assert paused['enabled'] is False and 'changed' in paused['paused_reason']
+    assert client.put(base + '/schedule', json=schedule, headers=key()).status_code == 409
