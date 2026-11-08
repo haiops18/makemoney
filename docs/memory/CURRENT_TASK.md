@@ -1,5 +1,16 @@
 # Current task
 
+## Step 7A — 2026-11-08 — PR3 of 4: Level B review
+
+PR2 is open as #11 and CI passed. The auto-mode classifier blocked its merge ("Merge Without Review"); the Owner must merge it.
+PR3 is on branch feat/step7a-pr3-level-b-review, stacked on PR2. It adds:
+- rule checks and Owner attestation;
+- Owner edits as versions, approve/reject;
+- export with the real link and disclosure;
+- publish records and the review UI.
+Migration: 20261107_0022.
+Next: PR4 (E2E, docs, security review, release v30.0.0).
+
 ## Step 7A — 2026-11-07 — PR2 of 4: AI content drafts
 
 PR1 merged as #10 (e2a2dfc). Branch feat/step7a-pr2-content-ai.

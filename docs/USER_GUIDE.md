@@ -358,7 +358,39 @@ Lưu ý:
 - AI **không thấy link thật**. AI chỉ viết `{{AFFILIATE_LINK}}`; link thật được ghép khi
   xuất bài ở bản sau. Nếu AI tự viết bất kỳ địa chỉ web nào, cả lô bị từ chối và không
   tạo bản nháp nào. Chi phí của lần gọi đó vẫn được ghi lại để đối soát.
-- Duyệt, sửa và xuất bài sẽ có ở bản tiếp theo.
+
+### 6.3. Duyệt nội dung và tự đăng (Level B)
+
+Bấm vào một bản nháp ở tab **Nội dung** để mở phần duyệt.
+
+1. **Chạy kiểm tra.** Hệ thống kiểm tra theo các luật cố định:
+   - nội dung còn chỗ giữ link;
+   - có câu công bố affiliate;
+   - khẳng định FACT có nguồn đã xác minh;
+   - giá và % khớp với dữ liệu đã xác minh;
+   - không có cụm từ bị hạn chế (*cam kết, đảm bảo, tốt nhất, số 1, 100%, chữa khỏi…*);
+   - không có địa chỉ web khác;
+   - không trùng gần như hoàn toàn với bài khác trong chiến dịch.
+2. **Xử lý kết quả.**
+   - **Không đạt**: sửa nội dung rồi chạy kiểm tra lại, hoặc từ chối.
+   - **Chờ Owner**: anh/chị tự xác nhận kèm ghi chú. Hai mục *Quyền dùng hình ảnh/tài
+     liệu* và *Quảng cáo, TMĐT và thuế* luôn cần anh/chị xác nhận.
+   - Hệ thống không bao giờ tự kết luận một nội dung là "đạt chuẩn".
+3. **Sửa.**
+   - Mỗi lần sửa tạo một phiên bản mới; các bản cũ vẫn xem được trong *Lịch sử phiên bản*.
+   - Sau khi sửa phải chạy kiểm tra lại.
+   - Giữ nguyên `{{AFFILIATE_LINK}}` ở chỗ cần đặt link.
+4. **Duyệt hoặc từ chối**, kèm ghi chú. Nút Duyệt chỉ bật khi mọi mục kiểm tra đã đạt.
+5. **Xuất để tự đăng.**
+   - Bản xuất có link affiliate thật và câu công bố của chiến dịch, dạng văn bản hoặc
+     Markdown. Bấm *Sao chép* rồi dán vào ứng dụng mạng xã hội.
+   - App **không tự đăng**.
+   - Nếu link đã ngừng dùng thì không xuất được.
+6. **Ghi nhận đã đăng.** Nhập kênh, link bài đăng và thời điểm đăng. Một nội dung có thể
+   ghi nhận nhiều kênh.
+
+Các luật kiểm tra chỉ là công cụ hỗ trợ, không phải tư vấn pháp lý. Quyết định cuối cùng là
+của anh/chị.
 
 ## 7. Theo dõi và đối soát chi phí
 

@@ -14,7 +14,7 @@ const workflowId = '00000000-0000-4000-8000-000000000008';
 const link = { id: linkId, program_id: '00000000-0000-4000-8000-000000000003', product_id: null, label: 'Váy maxi', original_url: 'https://s.shopee.vn/a', tracking_params: {}, final_url: 'https://s.shopee.vn/a', status: 'ACTIVE' };
 const batch = { run_id: runId, workflow_id: workflowId, workflow_status: 'DRAFT', content_types: ['SOCIAL_POST'], count_per_type: 1, max_cost_usd: '0.500000', affiliate_link_id: linkId, source_count: 1, item_count: 1, created_at: '2026-11-07T00:00:00Z' };
 const draft = { id: '00000000-0000-4000-8000-000000000009', batch_run_id: runId, content_type: 'SOCIAL_POST', status: 'DRAFT', created_at: '2026-11-07T00:00:00Z',
-  current_version: { version_no: 1, title: 'Váy hè mát', body: 'Xem tại {{AFFILIATE_LINK}}', hashtags: ['vay'], cta: 'Mua ngay', author_kind: 'AI', created_at: '2026-11-07T00:00:00Z',
+  current_version: { version_no: 1, base_version_no: null, author: 'content-agent', title: 'Váy hè mát', body: 'Xem tại {{AFFILIATE_LINK}}', hashtags: ['vay'], cta: 'Mua ngay', author_kind: 'AI', created_at: '2026-11-07T00:00:00Z',
     claims: [{ classification: 'FACT', statement: 'Hoa hồng 3.68%', source_ids: ['x'] }, { classification: 'HYPOTHESIS', statement: 'Có thể hợp dân văn phòng', source_ids: [] }] } };
 
 const paths = () => vi.mocked(fetch).mock.calls.map(([url, init]) => ({ path: String(url).replace(/^.*\/api\/v1/, ''), init }));
@@ -22,7 +22,7 @@ beforeEach(async () => {
   await i18n.changeLanguage('vi');
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     const path = String(url).replace(/^.*\/api\/v1/, '');
-    const body = path.endsWith('/links') ? [link] : path.endsWith('/content-batches') ? (init?.method === 'POST' ? batch : [batch]) : path.endsWith('/content') ? [draft]
+    const body = path.includes('/content/') ? { ...draft, versions: [draft.current_version], checks: [], publish_records: [] } : path.endsWith('/links') ? [link] : path.endsWith('/content-batches') ? (init?.method === 'POST' ? batch : [batch]) : path.endsWith('/content') ? [draft]
       : path.endsWith('/usage') ? { max_cost_usd: '2.000000', batch_limits_total: '0.500000', invocations: 1, calculated_cost: '0.010000', held_amount: '0.020000', by_agent: [] }
       : path === '/policies' ? [] : path.endsWith('/auto-run') ? null : [];
     return { ok: true, status: 200, json: async () => body } as Response;
@@ -62,8 +62,8 @@ it('blocks batches above ten items', async () => {
 
 it('shows drafts with their placeholder, claim labels, cost and the one-approval panel', async () => {
   renderContent();
-  expect(await screen.findByText('Váy hè mát')).toBeInTheDocument();
-  expect(screen.getByText('Xem tại {{AFFILIATE_LINK}}')).toBeInTheDocument();
+  fireEvent.click(await screen.findByText('Váy hè mát'));
+  expect(await screen.findByText('Xem tại {{AFFILIATE_LINK}}')).toBeInTheDocument();
   expect(screen.getByText('FACT')).toBeInTheDocument();
   expect(screen.getByText('HYPOTHESIS')).toBeInTheDocument();
   expect(await screen.findByTestId('campaign-usage')).toHaveTextContent('0.010000 USD');
