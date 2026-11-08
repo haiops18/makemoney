@@ -18,7 +18,7 @@ const posts = () => vi.mocked(fetch).mock.calls.filter(([, init]) => init?.metho
 beforeEach(async () => {
   await i18n.changeLanguage('vi');
   proposals = [proposal, { ...proposal, content_id: '00000000-0000-4000-8000-000000000053', title: 'Áo', ready: false, open_checks: ['MEDIA_RIGHTS'] }];
-  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     const path = String(url).replace(/^.*\/api\/v1/, '');
     let body: unknown = proposals;
     if (path.endsWith('/approve')) { proposals = proposals.slice(1); body = { id: contentId, status: 'APPROVED' }; }
