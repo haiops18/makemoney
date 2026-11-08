@@ -1,5 +1,15 @@
 # Known issues
 
+## v31.0.0
+
+- No test contacts Tavily, Brave, ACCESSTRADE or Facebook; clients follow the documented API
+  shapes with fake transports. Watch the first real search, import and post.
+- ACCESSTRADE's tracking-link host is taken from the official API response (not documented).
+- Product prices imported from ACCESSTRADE are the listing values the Owner saw, not re-fetched.
+- Facebook Page posts are text + link (no images yet). Revenue tracking (orders, commission) is
+  Step 8.
+- Local test stacks on this host need fsync off (slow disk); CI is unaffected.
+
 ## v30.0.0
 
 - No browser E2E runs a content batch through a real AI provider (CI has none);

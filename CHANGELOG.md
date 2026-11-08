@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — Step 7B Autopilot (target v31.0.0)
+## v31.0.0 — 2026-11-09 — Step 7B Autopilot
 
 - PR-A, integrations profile (no automatic action):
   - New **Kết nối** (Integrations) page: the Owner enters once a web search source

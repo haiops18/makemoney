@@ -1,5 +1,12 @@
 # Current task
 
+## Step 7B — 2026-11-09 — release v31.0.0
+
+PR #14 (integrations), #15 (discovery), #16 (ACCESSTRADE, auto checks, proposals) and #17
+(scheduled Facebook posting + security review fixes) merged by Claude on the Owner's instruction.
+Release branch release/v31.0.0: version 31.0.0 and docs. Next: CI, merge, tag, release, redeploy
+(migrations 0023–0026), then the Owner tries the flow on the server.
+
 ## Step 7A — 2026-11-08 — PR4 of 4: release v30.0.0
 
 PR #11 and #12 merged by Claude on the Owner's explicit instruction (main 81d9633).

@@ -4,6 +4,19 @@ Owner guide (Vietnamese): [docs/USER_GUIDE.md](docs/USER_GUIDE.md). It covers
 sign-in, provider/price/agent setup, running the seven AI stages, promotion and
 cost reconciliation.
 
+## v31.0.0 — Step 7B Autopilot
+
+- **Kết nối**: enter once a web search source (Tavily or Brave), ACCESSTRADE and a Facebook
+  Page; tokens are encrypted and write-only.
+- **Tìm cơ hội**: the app searches the web for a field, the AI analyses it in 8 stages and ranks
+  money-making ideas by estimated income × likelihood; approving one creates a scored opportunity.
+- **ACCESSTRADE**: products and tracked affiliate links from the official API; checks run as soon
+  as drafts exist; campaign-wide Owner confirmations; **Đề xuất** page for quick approval.
+- **Tự đăng theo lịch**: approved items post to the Facebook Page at the Owner's hours; any error
+  pauses the schedule and nothing is retried or double-posted.
+- Migrations `20261108_0023`–`20261108_0026` (forward only). See CHANGELOG and docs/USER_GUIDE.md
+  §6.4–6.7.
+
 ## v30.0.0 — Step 7A AI Content & Affiliate Factory (Level B)
 
 - **Campaigns** turn an evaluated opportunity into an affiliate campaign with its own

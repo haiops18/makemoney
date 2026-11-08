@@ -50,7 +50,7 @@ it does not change Steps 4–6, which stay as released.
 | 5 Workflow Orchestration | | RELEASED v28.0.0 |
 | 6 AI Brain & Research Agents | Plus v29.1.0 sign-in and v29.2.0 one-approval auto-run | RELEASED v29.0.0–v29.2.0 (verified 2026-11-07; v29.2.0 at `75f21ec`) |
 | **7A AI Content & Affiliate Factory** | Campaigns, affiliate research and links, content, checks, Level B review | v30.0.0 (2026-11-08) — see `docs/planning/STEP7A_ARCHITECTURE.md` |
-| 7B Channel Integration & Controlled Auto-posting | Level C | **NEXT** (awaits Owner direction) |
+| 7B Channel Integration & Controlled Auto-posting | Level C | v31.0.0 (2026-11-09) — see `docs/planning/STEP7B_AUTOPILOT.md` |
 | 8 Monetization & Tracking | | Planned |
 | 9 Financial Reconciliation | | Planned |
 | 10 Autonomous Optimization & Production | | Planned |
