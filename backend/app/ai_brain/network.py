@@ -11,7 +11,7 @@ import ssl
 import time
 from queue import Empty, Queue
 from threading import BoundedSemaphore, Thread, Timer
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 
 class NetworkDenied(ValueError):
@@ -94,17 +94,21 @@ def post_provider_json(url: str, allowed_hosts: set[str], headers: dict[str, str
     return provider_request('POST', url, allowed_hosts, headers, payload, timeout_seconds)
 
 
-def get_provider_json(url: str, allowed_hosts: set[str], headers: dict[str, str], timeout_seconds: int) -> tuple[int, object]:
+def get_provider_json(url: str, allowed_hosts: set[str], headers: dict[str, str], timeout_seconds: int, query: dict[str, str] | None = None) -> tuple[int, object]:
     """One bounded read-only request (connection test); same destination controls."""
-    return provider_request('GET', url, allowed_hosts, headers, None, timeout_seconds)
+    return provider_request('GET', url, allowed_hosts, headers, None, timeout_seconds, query=query)
 
 
-def provider_request(method: str, url: str, allowed_hosts: set[str], headers: dict[str, str], payload: dict | None, timeout_seconds: int) -> tuple[int, object]:
+def provider_request(method: str, url: str, allowed_hosts: set[str], headers: dict[str, str], payload: dict | None, timeout_seconds: int,
+                     query: dict[str, str] | None = None) -> tuple[int, object]:
     if method not in {'GET', 'POST'} or (method == 'POST') != (payload is not None):
         raise NetworkDenied('Invalid provider request method')
     if type(timeout_seconds) is not int or not 1 <= timeout_seconds <= 300:
         raise NetworkDenied('Invalid provider timeout')
-    allowed_headers = {'authorization', 'x-api-key', 'x-goog-api-key', 'anthropic-version', 'content-type'}
+    # The query string is built here from plain values, never taken from a caller URL.
+    if query is not None and (len(query) > 20 or any(not isinstance(k, str) or not isinstance(v, str) or len(k) > 50 or len(v) > 500 for k, v in query.items())):
+        raise NetworkDenied('Invalid provider query')
+    allowed_headers = {'authorization', 'x-api-key', 'x-goog-api-key', 'anthropic-version', 'content-type', 'x-subscription-token', 'accept'}
     if any(name.lower() not in allowed_headers or any(ord(char) < 32 or ord(char) == 127 for char in value) for name, value in headers.items()):
         raise NetworkDenied('Invalid provider headers')
     body = json.dumps(payload, ensure_ascii=False, allow_nan=False).encode('utf-8') if payload is not None else None
@@ -112,6 +116,8 @@ def provider_request(method: str, url: str, allowed_hosts: set[str], headers: di
         raise NetworkDenied('Provider payload exceeds the input limit')
     deadline = time.monotonic() + timeout_seconds
     host, address, path = resolve_public_target(url, allowed_hosts, resolver=lambda host, port, **kwargs: _bounded_resolve(host, port, **kwargs, timeout=timeout_seconds))
+    if query:
+        path = path + '?' + urlencode(query)
     remaining = deadline - time.monotonic()
     if remaining <= 0:
         raise NetworkDenied('Provider request deadline expired before dispatch')
